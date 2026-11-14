@@ -21,13 +21,14 @@ function localUpdate(dt) {
   let ix = In.x, iy = In.y;
   if (!In.jon) { const k = In.keys; ix = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0); iy = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0); }
   const r = updateMover(p, ix, iy, dt);
+  if (p.m) { Game.stepT = (Game.stepT || 0) - dt; if (Game.stepT <= 0) { Game.stepT = 0.26; Au.play('step'); } }
   const cx = Math.round(p.x), cy = Math.round(p.y);
   Game.kickT -= dt;
-  if (r.hit && (s.kick || s.ch === 3) && Game.kickT <= 0) { Game.kickT = 0.25; request('p', cx, cy, p.d); Au.play('place', 0.8); }
+  if (r.hit && (s.kick || CHARS[s.ch].k === 3) && Game.kickT <= 0) { Game.kickT = 0.25; request('p', cx, cy, p.d); Au.play('place', 0.8); }
   if (In.bomb) { In.bomb = false; request('b', cx, cy, p.d); }
   if (In.abil) {
     In.abil = false;
-    if (s.ch === 2) { if (s.cd <= 0.05 && performance.now() > Game.dashLock) { Game.dashLock = performance.now() + 900; if (request('a', cx, cy, p.d) !== false) { p.dashT = 0.2; p.dashDir = p.d; } } }
+    if (CHARS[s.ch].k === 2) { if (s.cd <= 0.05 && performance.now() > Game.dashLock) { Game.dashLock = performance.now() + 900; if (request('a', cx, cy, p.d) !== false) { p.dashT = 0.2; p.dashDir = p.d; } } }
     else request('a', cx, cy, p.d);
   }
 }
@@ -69,8 +70,8 @@ function startMatch() {
 }
 function lobbyBuild() {
   const hs = [{ peer: Net.myPeer || 'H', nm: Game.name, ch: Game.ch, jt: -1 }];
-  if (Game.mode === 'host') { findSelf(); hs[0].peer = Net.myPeer || 'H'; for (const p of Net.chan.peers()) { if (p.isMe && p.sameTab) continue; const pr = p.presence; if (!pr || pr.v !== 1 || pr.host) continue; hs.push({ peer: p.peer, nm: cleanName(pr.nm), ch: pr.ch & 3, jt: +pr.jt || 0 }); } hs.sort((a, b) => a.jt - b.jt); }
-  const size = clamp(Game.opt.size | 0, 2, 4), used = hs.slice(0, size).map(h => h.ch), free = [0, 1, 2, 3].filter(c => !used.includes(c)); let fi = 0;
+  if (Game.mode === 'host') { findSelf(); hs[0].peer = Net.myPeer || 'H'; for (const p of Net.chan.peers()) { if (p.isMe && p.sameTab) continue; const pr = p.presence; if (!pr || pr.v !== 1 || pr.host) continue; hs.push({ peer: p.peer, nm: cleanName(pr.nm), ch: clamp(pr.ch | 0, 0, NCH - 1), jt: +pr.jt || 0 }); } hs.sort((a, b) => a.jt - b.jt); }
+  const size = clamp(Game.opt.size | 0, 2, 4), used = hs.slice(0, size).map(h => h.ch), free = CHARS.map((c, i) => i).filter(c => !used.includes(c)); let fi = 0;
   for (let i = 0; i < 4; i++) {
     const s = V.slots[i], h = i < size ? hs[i] : null;
     if (h) { s.k = 'h'; s.peer = h.peer; s.nm = h.nm; s.ch = h.ch; }
@@ -108,7 +109,7 @@ function avatar(ch, col, cls = '') { const src = G.portraits[ch]; return `<span 
 
 UI.init = function () {
   const L = $('labels'); for (let i = 0; i < 4; i++) { const d = document.createElement('div'); d.className = 'lab'; d.style.display = 'none'; d.style.color = SLOTCOL[i]; L.appendChild(d); UI.labs.push(d); }
-  try { Game.name = cleanName(localStorage.getItem('boom.nm') || 'Jogador'); Game.ch = clamp(parseInt(localStorage.getItem('boom.ch')) || 0, 0, 3); Au.on = localStorage.getItem('boom.snd') !== '0'; Au.vib = localStorage.getItem('boom.vib') !== '0'; Mu.on = localStorage.getItem('boom.mus') !== '0'; Game.cam = clamp(parseInt(localStorage.getItem('boom.cam')) || 0, 0, 2); } catch (e) { }
+  try { Game.name = cleanName(localStorage.getItem('boom.nm') || 'Jogador'); Game.ch = clamp(parseInt(localStorage.getItem('boom.ch')) || 0, 0, NCH - 1); Au.on = localStorage.getItem('boom.snd') !== '0'; Au.vib = localStorage.getItem('boom.vib') !== '0'; Mu.on = localStorage.getItem('boom.mus') !== '0'; Game.cam = clamp(parseInt(localStorage.getItem('boom.cam')) || 0, 0, 2); } catch (e) { }
   $('nm').value = Game.name === 'Jogador' ? '' : Game.name;
   $('nm').addEventListener('input', () => { Game.name = cleanName($('nm').value); try { localStorage.setItem('boom.nm', Game.name); } catch (e) { } });
   UI.renderChars();
@@ -179,15 +180,15 @@ UI.renderSettings = function () {
 };
 UI.renderLobby = function () {
   const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots, Game.opt.size] : (Net.opt || [-1, 0, 4]), size = clamp(opt[2] | 0 || 4, 2, 4);
-  const sig = JSON.stringify([Game.mode, Net.code, mi, opt, V.slots.map(s => [s.k, s.nm, s.ch, s.peer])]); if (sig === UI.sig.lobby) return; UI.sig.lobby = sig;
+  const sig = JSON.stringify([Game.mode, Net.code, mi, opt, Game.ch, V.slots.map(s => [s.k, s.nm, s.ch, s.peer])]); if (sig === UI.sig.lobby) return; UI.sig.lobby = sig;
   $('lb-head').innerHTML = online ? `<div class="code"><small>CÓDIGO DA SALA</small><b>${esc(Net.code)}</b><button class="link" id="b-copy">Copiar código</button></div><canvas id="qr" width="132" height="132" class="hide"></canvas>` : `<div class="code"><small>MODO</small><b class="solo">Solo</b></div>`;
   $('lb-hint').textContent = online ? (HOSTED ? 'Os outros apontam a câmera do celular para o QR, ou abrem este mesmo link, tocam em "Entrar em sala" e digitam o código.' : 'Os outros jogadores abrem este mesmo jogo, tocam em "Entrar em sala" e digitam o código.') : 'Você contra três bots. Escolha o mapa e a dificuldade.';
-  $('lb-slots').innerHTML = V.slots.slice(0, size).map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${SLOTCOL[i]}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${SLOTCOL[i]}"></span>${avatar(s.ch, SLOTCOL[i])}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i></div><u>${i === mi ? 'Você' : s.k === 'b' ? 'Bot' : i === 0 ? 'Anfitrião' : ''}</u></div>`).join('');
+  $('lb-slots').innerHTML = V.slots.slice(0, size).map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${SLOTCOL[i]}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${SLOTCOL[i]}"></span>${avatar(s.ch, SLOTCOL[i])}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i></div>${i === mi ? '<u>Você</u>' : s.k === 'b' ? '<u>Bot</u>' : i === 0 ? '<u>Anfitrião</u>' : ''}</div>`).join('');
   const chips = (key, names, cur, first) => names.map((n, i) => `<button class="chip${i + first === cur ? ' sel' : ''}" data-k="${key}" data-v="${i + first}" ${host ? '' : 'disabled'}>${n}</button>`).join('');
-  $('lb-opts').innerHTML = `<div class="srow"><span>Seu personagem</span><div class="chips">${CHARS.map((c, i) => `<button class="chip av-chip${i === Game.ch ? ' sel' : ''}" data-k="ch" data-v="${i}">${avatar(i, i === Game.ch ? '#fff' : 'transparent', 'sm')}</button>`).join('')}</div></div>
-   <div class="srow"><span>Jogadores</span><div class="chips">${chips('size', ['2', '3', '4'], size, 2)}</div></div>
+  $('lb-opts').innerHTML = `<div class="srow"><span>Seu personagem · ${CHARS[Game.ch].name} · ${CHARS[Game.ch].tag}</span><div class="chips avs">${CHARS.map((c, i) => `<button class="chip av-chip${i === Game.ch ? ' sel' : ''}" data-k="ch" data-v="${i}">${avatar(i, i === Game.ch ? '#fff' : 'transparent', 'sm')}</button>`).join('')}</div></div>
+   <div class="srow"><span>Jogadores</span><div class="chips seg">${chips('size', ['2', '3', '4'], size, 2)}</div></div>
    <div class="srow"><span>Mapa</span><div class="chips">${chips('map', ['Sorteio', ...MAPS], opt[0], -1)}</div></div>
-   <div class="srow"><span>Bots</span><div class="chips">${chips('bots', online ? ['Sem bots', ...DIFFS] : DIFFS, opt[1], online ? 0 : 1)}</div></div>`;
+   <div class="srow"><span>Bots</span><div class="chips seg">${chips('bots', online ? ['Sem bots', ...DIFFS] : DIFFS, opt[1], online ? 0 : 1)}</div></div>`;
   const n = V.slots.filter(s => s.k !== '-').length;
   $('b-start').classList.toggle('hide', !host); $('b-start').disabled = n < 2;
   $('lb-wait').textContent = host ? (n < 2 ? 'Aguardando mais jogadores ou ative os bots.' : '') : (mi < 0 ? 'Sala cheia ou partida em andamento — aguarde uma vaga.' : 'Aguardando o anfitrião começar…');
@@ -227,6 +228,8 @@ UI.tick = function (dt) {
   if (V.ph === 'lobby') return UI.renderLobby();
   if (V.ph === 'count' && V.c !== UI.c) { UI.c = V.c; banner(String(V.c), 950, 'Rodada ' + V.rnd + ' · ' + MAPS[V.map]); Au.play('beep'); }
   if (!G.inGame) return;
+  const hurry = V.ph === 'play' && V.t <= SHRINK_AT; if (hurry && !UI.hurry) { banner('DEPRESSA!', 1400, 'A arena está fechando'); Au.play('alarm'); } UI.hurry = hurry;
+  if (V.ph === 'play' && V.t <= 10) { const sec = Math.ceil(V.t); if (sec !== UI.lastSec) { UI.lastSec = sec; Au.play('tick'); } }
   const mi = myIdx(), s = mi >= 0 ? V.slots[mi] : null;
   const tt = Math.ceil(V.t), ts = Math.floor(tt / 60) + ':' + String(tt % 60).padStart(2, '0');
   if (ts !== UI.sig.tm) { UI.sig.tm = ts; $('tm').textContent = ts; $('clock').classList.toggle('hot', V.t <= SHRINK_AT); $('rd').textContent = V.t <= SHRINK_AT ? 'A arena está fechando!' : 'Rodada ' + V.rnd; }
@@ -236,9 +239,9 @@ UI.tick = function (dt) {
   if (spec !== UI.specWas) { UI.specWas = spec; fitCamera(); }
   show('controls', !spec); show('spec', spec && V.ph === 'play'); if (spec) { if (In.jon) UI.jend(); $('spec').textContent = s ? 'Você foi eliminado — assistindo ao resto da rodada' : 'Assistindo — você entra na próxima partida'; }
   if (s) {
-    const st = [s.maxB, s.range, s.spd, s.shield, s.kick || s.ch === 3 ? 1 : 0, s.pierce].join();
-    if (st !== UI.sig.stats) { UI.sig.stats = st; const it = (t, v) => `<span><img src="${G.icons[t]}" alt="">${v}</span>`; $('stats').innerHTML = it(0, s.maxB) + it(1, s.range) + it(2, s.spd) + (s.shield ? it(3, '') : '') + (s.kick || s.ch === 3 ? it(4, '') : '') + (s.pierce ? it(5, '') : ''); }
-    const remote = s.ch === 0 && V.bombs.some(b => b.o === mi && b.type === 1), label = remote ? 'DETONAR' : CHARS[s.ch].btn;
+    const st = [s.maxB, s.range, s.spd, s.shield, s.kick || CHARS[s.ch].k === 3 ? 1 : 0, s.pierce].join();
+    if (st !== UI.sig.stats) { UI.sig.stats = st; const it = (t, v) => `<span><img src="${G.icons[t]}" alt="">${v}</span>`; $('stats').innerHTML = it(0, s.maxB) + it(1, s.range) + it(2, s.spd) + (s.shield ? it(3, '') : '') + (s.kick || CHARS[s.ch].k === 3 ? it(4, '') : '') + (s.pierce ? it(5, '') : ''); }
+    const remote = CHARS[s.ch].k === 0 && V.bombs.some(b => b.o === mi && b.type === 1), label = remote ? 'DETONAR' : CHARS[s.ch].btn;
     if (label !== UI.sig.ab) { UI.sig.ab = label; $('ab-l').textContent = label; $('bt-ab').style.setProperty('--c', CHARS[s.ch].col); $('bt-ab').classList.toggle('arm', remote); }
     const p = clamp(s.cd / CHARS[s.ch].cd, 0, 1); $('bt-ab').style.setProperty('--p', (p * 100).toFixed(0) + '%'); $('bt-ab').classList.toggle('cool', p > 0.01 && !remote);
     if (s.cd > 0.05 && UI.cdWas <= 0.05) Au.play('abil'); UI.cdWas = s.cd;

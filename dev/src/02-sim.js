@@ -17,7 +17,7 @@ function genGrid() {
 
 function simSetupMatch(mapChoice, diff) {
   Sim.mapChoice = mapChoice; V.diff = diff;
-  Sim.order = [4].concat([0, 1, 2, 3].sort(() => Math.random() - 0.5));
+  Sim.order = [4].concat([0, 1, 2, 3, 5, 6, 7].sort(() => Math.random() - 0.5));
   V.rnd = 0; V.mwin = -1;
   for (const s of V.slots) { s.w = 0; s.e = [0, 0]; }
   simStartRound();
@@ -25,7 +25,7 @@ function simSetupMatch(mapChoice, diff) {
 
 function simStartRound() {
   V.rnd++; V.epoch++;
-  V.map = Sim.mapChoice >= 0 ? Sim.mapChoice : Sim.order[(V.rnd - 1) % 5];
+  V.map = Sim.mapChoice >= 0 ? Sim.mapChoice : Sim.order[(V.rnd - 1) % NMAP];
   V.tiles = mapTiles(V.map);
   genGrid();
   V.bombs.length = 0; V.flames.length = 0; V.pus.length = 0; Sim.burn.clear(); Sim.flameGrid.fill(0);
@@ -122,7 +122,7 @@ function findLanding(cx, cy, dir) {
 function reqAbility(i, type, cx, cy, dir) {
   const s = V.slots[i]; if (V.ph !== 'play' || !s || !s.al) return false;
   cx |= 0; cy |= 0; dir = dir & 3; if (!inb(cx, cy) || Math.abs(cx - s.x) > 1.6 || Math.abs(cy - s.y) > 1.6) return false;
-  const ch = s.ch;
+  const ch = CHARS[s.ch].k;
   if (type === 'p') { if (!(s.kick || ch === 3)) return false; return kickBomb(bombAtCell(cx + DX[dir], cy + DY[dir]), dir); }
   if (ch === 0) {
     const rb = V.bombs.find(b => b.o === i && b.type === 1);
@@ -268,7 +268,7 @@ function botPlan(s) {
   const hitsEnemy = cells => { for (const q of cells) for (const e of enemies) if (Math.round(e.x) === q[0] && Math.round(e.y) === q[1]) return true; return false; };
   const skill = V.diff > 0 || Math.random() < 0.3;
   // habilidades
-  if (s.ch === 0) {
+  if (CHARS[s.ch].k === 0) {
     const rb = V.bombs.find(q => q.o === me && q.type === 1);
     if (rb && !rb.fly) {
       const cells = blastCells(Math.round(rb.x), Math.round(rb.y), rb.range, rb.pierce, false);
@@ -285,16 +285,16 @@ function botPlan(s) {
     if (best < 0) { R = bfs(cx, cy, D, sp, 0.5 / sp + 0.03); best = nearestSafe(R, D); }
     if (best < 0) {
       let bt = -1; for (let c = 0; c < N; c++) if (R.dist[c] >= 0 && D[c] > bt) { bt = D[c]; best = c; }
-      if (s.ch === 2 && s.cd <= 0 && D[c0] < 0.7 && skill) { for (let d = 0; d < 4; d++) { const x = cx + DX[d], y = cy + DY[d]; if (!solidCell(x, y)) { if (reqAbility(me, 'a', cx, cy, d)) { s.dashT = 0.2; s.dashDir = d; } break; } } }
+      if (CHARS[s.ch].k === 2 && s.cd <= 0 && D[c0] < 0.7 && skill) { for (let d = 0; d < 4; d++) { const x = cx + DX[d], y = cy + DY[d]; if (!solidCell(x, y)) { if (reqAbility(me, 'a', cx, cy, d)) { s.dashT = 0.2; s.dashDir = d; } break; } } }
     }
     b.path = best >= 0 ? pathFrom(R, c0, best) : []; b.goal = best; return;
   }
   if (skill && s.cd <= 0) {
-    if (s.ch === 1 && ownBombs(me) < s.maxB) for (let d = 0; d < 4; d++) for (let k = 2; k <= 5; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (playerAtCell(x, y) && playerAtCell(x, y).i !== me) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
-    if (s.ch === 3) for (let d = 0; d < 4; d++) { for (let k = 1; k <= 7; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (solidCell(x, y) || Sim.BG[idx(x, y)]) break; const e = playerAtCell(x, y); if (e && e.i !== me && k >= 3) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } } }
+    if (CHARS[s.ch].k === 1 && ownBombs(me) < s.maxB) for (let d = 0; d < 4; d++) for (let k = 2; k <= 5; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (playerAtCell(x, y) && playerAtCell(x, y).i !== me) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
+    if (CHARS[s.ch].k === 3) for (let d = 0; d < 4; d++) { for (let k = 1; k <= 7; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (solidCell(x, y) || Sim.BG[idx(x, y)]) break; const e = playerAtCell(x, y); if (e && e.i !== me && k >= 3) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } } }
   }
   const canBomb = ownBombs(me) < s.maxB && !Sim.BG[c0];
-  const remoteOK = s.ch === 0 && s.cd <= 0 && !V.bombs.some(q => q.o === me && q.type === 1) && !Sim.BG[c0];
+  const remoteOK = CHARS[s.ch].k === 0 && s.cd <= 0 && !V.bombs.some(q => q.o === me && q.type === 1) && !Sim.BG[c0];
   if (canBomb && V.diff > 0 && (V.diff === 2 || Math.random() < 0.5)) for (const e of enemies) {
     const ex = Math.round(e.x), ey = Math.round(e.y), ec = idx(ex, ey);
     if (Math.abs(ex - cx) + Math.abs(ey - cy) > s.range + 2) continue;
@@ -348,5 +348,5 @@ function botUpdate(s, dt) {
   }
   const r = updateMover(s, ix, iy, dt); s.lim = 0;
   if (r.tele) { b.path = []; b.t = 0; }
-  if (r.hit && (s.kick || s.ch === 3)) kickBomb(r.hit, s.d);
+  if (r.hit && (s.kick || CHARS[s.ch].k === 3)) kickBomb(r.hit, s.d);
 }

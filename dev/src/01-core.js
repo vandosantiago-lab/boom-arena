@@ -14,13 +14,19 @@ const SPAWNS = [[0, 0], [12, 10], [12, 0], [0, 10]];
 const ROUND_T = 120, SHRINK_AT = 60, WINS = 2, FUSE = 2.5;
 
 const CHARS = [
-  { name: 'Kaio', tag: 'Bomba remota', desc: 'Planta uma bomba extra e detona na hora que quiser.', btn: 'REMOTA', col: '#ff7a1a', cd: 4 },
-  { name: 'Luna', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#12b5a4', cd: 5 },
-  { name: 'Zeca', tag: 'Dash de skate', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#7c4dff', cd: 5 },
-  { name: 'Dudu', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5 },
+  { name: 'Kaio', tag: 'Bomba remota', desc: 'Planta uma bomba extra e detona na hora que quiser.', btn: 'REMOTA', col: '#ff7a1a', cd: 4, k: 0 },
+  { name: 'Luna', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#12b5a4', cd: 5, k: 1 },
+  { name: 'Zeca', tag: 'Dash de skate', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#7c4dff', cd: 5, k: 2 },
+  { name: 'Dudu', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5, k: 3 },
+  { name: 'Bia', tag: 'Bomba remota', desc: 'Planta uma bomba extra e detona na hora que quiser.', btn: 'REMOTA', col: '#e0409a', cd: 4, k: 0 },
+  { name: 'Téo', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#2e9a4a', cd: 5, k: 1 },
+  { name: 'Nina', tag: 'Dash de skate', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#ff5a7a', cd: 5, k: 2 },
+  { name: 'Rex', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#d12a2a', cd: 3.5, k: 3 },
 ];
+const NCH = CHARS.length;
 const SLOTCOL = ['#ff4d4d', '#3db8ff', '#ffd23d', '#5dea8c'];
-const MAPS = ['Cidade', 'Praia', 'Estádio', 'Fábrica', 'Clássico'];
+const MAPS = ['Cidade', 'Praia', 'Estádio', 'Fábrica', 'Clássico', 'Neve', 'Vulcão', 'Espaço'];
+const NMAP = MAPS.length;
 const PU_NAMES = ['+1 bomba', '+1 fogo', 'Velocidade', 'Escudo', 'Chute', 'Fogo perfurante'];
 const DIFFS = ['Fácil', 'Normal', 'Difícil'];
 const EMOTES = ['👍', '😂', '😱', '💣'];
@@ -37,6 +43,9 @@ function mapTiles(m) {
     for (let y = 8; y > 2; y--) t.conv.push([2, y, 2]);
     t.spk = [[6, 5], [4, 5], [8, 5]];
   }
+  if (m === 5) { t.slow = [[4, 2], [6, 2], [8, 2], [2, 4], [10, 4], [2, 6], [10, 6], [4, 8], [6, 8], [8, 8], [6, 4], [6, 6]]; t.tele = [[0, 5, 12, 5]]; }
+  if (m === 6) t.spk = [[2, 2], [10, 2], [2, 8], [10, 8], [6, 4], [6, 6], [4, 5], [8, 5], [6, 2], [6, 8]];
+  if (m === 7) { t.tele = [[2, 2, 10, 8], [10, 2, 2, 8], [6, 0, 6, 10]]; for (let x = 3; x <= 9; x++) { t.conv.push([x, 4, 3]); t.conv.push([12 - x, 6, 1]); } }
   for (const c of t.conv) { t.convAt[idx(c[0], c[1])] = c[2]; t.special[idx(c[0], c[1])] = 1; }
   for (const c of t.spk) { t.spkAt[idx(c[0], c[1])] = 1; t.special[idx(c[0], c[1])] = 1; }
   for (const c of t.slow) { t.slowAt[idx(c[0], c[1])] = 1; t.special[idx(c[0], c[1])] = 1; }

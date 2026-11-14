@@ -23,8 +23,18 @@ const Au = {
       else if (name === 'thud') this.tone(90, 40, 0.18, 'sine', 0.7 * v);
       else if (name === 'click') this.tone(700, 500, 0.05, 'square', 0.12 * v);
       else if (name === 'emo') this.tone(880, 1320, 0.1, 'sine', 0.2 * v);
+      else if (name === 'crack') { if (this.gate('crack', 70)) return; this.nz(0.16, 3200, 500, 0.32 * v); this.tone(180, 70, 0.1, 'square', 0.12 * v); }
+      else if (name === 'spark') { if (this.gate('spark', 120)) return; this.tone(1320, 1980, 0.08, 'sine', 0.14 * v); this.tone(1980, 2640, 0.1, 'sine', 0.1 * v, 0.06); }
+      else if (name === 'clang') { this.tone(1240, 1180, 0.3, 'square', 0.13 * v); this.tone(1870, 1800, 0.25, 'square', 0.09 * v); this.nz(0.08, 6000, 2000, 0.2 * v); }
+      else if (name === 'kick') { if (this.gate('kick', 120)) return; this.tone(160, 55, 0.12, 'sine', 0.6 * v); this.nz(0.05, 2500, 800, 0.25 * v); }
+      else if (name === 'whoosh') { this.nz(0.32, 500, 3800, 0.3 * v); this.tone(420, 880, 0.3, 'sine', 0.1 * v); }
+      else if (name === 'shing') { if (this.gate('shing', 400)) return; this.nz(0.14, 9000, 3000, 0.16 * v); this.tone(2400, 1500, 0.12, 'sawtooth', 0.05 * v); }
+      else if (name === 'alarm') [0, 0.32, 0.64].forEach(d => { this.tone(880, 880, 0.15, 'square', 0.2 * v, d); this.tone(660, 660, 0.15, 'square', 0.2 * v, d + 0.16); });
+      else if (name === 'step') this.nz(0.035, 900, 300, 0.07 * v);
+      else if (name === 'tick') this.tone(1500, 1500, 0.03, 'square', 0.08 * v);
     } catch (e) { }
   },
+  gate(k, ms) { const n = performance.now(), g = this._g || (this._g = {}); if (n - (g[k] || 0) < ms) return true; g[k] = n; return false; },
   buzz(ms) { if (!this.vib) return; try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { } },
 };
 
@@ -127,11 +137,11 @@ function snap() {
 }
 function applySnap(g) {
   V.ph = String(g.ph); V.rnd = g.rnd | 0; V.t = g.t / 10; V.el = g.el / 10; V.c = g.c | 0; V.win = g.win | 0; V.mwin = g.mw | 0; V.sh = g.sh | 0; V.ld = Array.isArray(g.ld) ? [+g.ld[0], +g.ld[1]] : null; V.diff = clamp(g.df | 0, 0, 2); Net.opt = Array.isArray(g.o) ? g.o : null;
-  if ((g.map | 0) !== V.map || !V.tiles) { V.map = clamp(g.map | 0, 0, 4); V.tiles = mapTiles(V.map); }
+  if ((g.map | 0) !== V.map || !V.tiles) { V.map = clamp(g.map | 0, 0, NMAP - 1); V.tiles = mapTiles(V.map); }
   const gr = String(g.gr); for (let i = 0; i < N; i++) { const k = GCH.indexOf(gr[i]); V.grid[i] = k < 0 ? 0 : k; }
   for (let i = 0; i < 4; i++) {
     const a = g.s && g.s[i], s = V.slots[i]; if (!Array.isArray(a)) { s.k = '-'; continue; }
-    s.k = a[0] === 'h' || a[0] === 'b' ? a[0] : '-'; s.peer = a[1] || null; s.nm = cleanName(a[2]); s.ch = a[3] & 3; s.w = a[4] | 0; s.al = a[5] ? 1 : 0; s.x = a[6] / 100; s.y = a[7] / 100; s.d = a[8] & 3; s.m = a[9] ? 1 : 0;
+    s.k = a[0] === 'h' || a[0] === 'b' ? a[0] : '-'; s.peer = a[1] || null; s.nm = cleanName(a[2]); s.ch = clamp(a[3] | 0, 0, NCH - 1); s.w = a[4] | 0; s.al = a[5] ? 1 : 0; s.x = a[6] / 100; s.y = a[7] / 100; s.d = a[8] & 3; s.m = a[9] ? 1 : 0;
     s.maxB = a[10] | 0; s.range = a[11] | 0; s.spd = a[12] | 0; s.shield = a[13] | 0; s.kick = a[14] | 0; s.pierce = a[15] | 0; s.inv = a[16] | 0; s.cd = a[17] / 10; s.e = [a[18] | 0, a[19] | 0]; s.dash = a[20] | 0;
   }
   V.bombs = (g.b || []).map(b => ({ id: b[0], x: b[1] / 100, y: b[2] / 100, o: b[3], fuse: b[4] / 10, type: b[5], range: 2, pierce: 0, sl: -1, fly: b[6] ? { fx: b[6][0], fy: b[6][1], p: b[6][2] / 100 } : null }));
