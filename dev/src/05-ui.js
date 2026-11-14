@@ -1,6 +1,6 @@
 // ===================== JOGO, ENTRADA E INTERFACE =====================
 const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4 }, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
-const In = { x: 0, y: 0, bomb: false, abil: false, keys: {}, jid: -1, ox: 0, oy: 0, jx: 0, jy: 0 };
+const In = { x: 0, y: 0, bomb: false, abil: false, keys: {}, jid: null, jon: false, ox: 0, oy: 0, jx: 0, jy: 0 };
 const UI = { ph: '', ep: -1, phT: 0, c: -1, labs: [], sig: {}, bannerT: 0, toastT: 0, cdWas: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const show = (id, on) => $(id).classList.toggle('hide', !on);
@@ -19,7 +19,7 @@ function localUpdate(dt) {
   if (V.ph !== 'play' || !s.al) { p.m = 0; p.dashT = 0; In.bomb = In.abil = false; return; }
   if (Game.mode === 'client') p.spd = s.spd;
   let ix = In.x, iy = In.y;
-  if (In.jid < 0) { const k = In.keys; ix = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0); iy = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0); }
+  if (!In.jon) { const k = In.keys; ix = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0); iy = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0); }
   const r = updateMover(p, ix, iy, dt);
   const cx = Math.round(p.x), cy = Math.round(p.y);
   Game.kickT -= dt;
@@ -129,14 +129,21 @@ UI.init = function () {
   $('how-list').innerHTML = [0, 1, 2, 3, 4, 5].map(t => `<div class="pu"><img src="${G.icons[t]}" style="background:${PU_BG[t]}" alt=""><span>${['Mais uma bomba ao mesmo tempo', 'Explosão alcança mais longe', 'Você anda mais rápido', 'Aguenta uma explosão', 'Chuta bombas ao encostar nelas', 'Explosão atravessa blocos'][t]}</span></div>`).join('');
   // controles
   const jz = $('joyzone'), joy = $('joy'), knob = $('joyk');
-  const R = 44, DEAD = 7;
+  const R = 44, DEAD = 7, hasTouch = 'ontouchstart' in window;
   const jset = (x, y) => { let dx = x - In.ox, dy = y - In.oy; const m = Math.hypot(dx, dy); if (m > R) { In.ox += dx * (1 - R / m); In.oy += dy * (1 - R / m); dx *= R / m; dy *= R / m; joy.style.left = In.ox + 'px'; joy.style.top = In.oy + 'px'; } knob.style.transform = `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`; if (m > DEAD) { In.x = dx / Math.min(m, R); In.y = dy / Math.min(m, R); } else In.x = In.y = 0; };
-  const jend = e => { if (e && e.pointerId !== undefined && e.pointerId !== In.jid) return; In.jid = -1; In.x = In.y = 0; joy.classList.remove('on'); joy.style.left = ''; joy.style.top = ''; knob.style.transform = ''; };
-  jz.addEventListener('pointerdown', e => { Au.init(); In.jid = e.pointerId; In.ox = e.clientX; In.oy = e.clientY; In.x = In.y = 0; joy.style.left = e.clientX + 'px'; joy.style.top = e.clientY + 'px'; joy.classList.add('on'); knob.style.transform = 'translate(-50%,-50%)'; try { jz.setPointerCapture(e.pointerId); } catch (x) { } e.preventDefault(); });
-  jz.addEventListener('pointermove', e => { if (e.pointerId !== In.jid) return; const ev = e.getCoalescedEvents ? e.getCoalescedEvents() : null, l = ev && ev.length ? ev[ev.length - 1] : e; jset(l.clientX, l.clientY); e.preventDefault(); });
-  jz.addEventListener('pointerup', jend); jz.addEventListener('pointercancel', jend);
-  addEventListener('pointerup', jend); addEventListener('pointercancel', jend);
-  for (const t of ['touchstart', 'touchmove']) jz.addEventListener(t, e => e.preventDefault(), { passive: false });
+  const jstart = (id, x, y) => { Au.init(); In.jid = id; In.jon = true; In.ox = x; In.oy = y; In.x = In.y = 0; joy.style.left = x + 'px'; joy.style.top = y + 'px'; joy.classList.add('on'); knob.style.transform = 'translate(-50%,-50%)'; };
+  const jend = () => { In.jon = false; In.jid = null; In.x = In.y = 0; joy.classList.remove('on'); joy.style.left = ''; joy.style.top = ''; knob.style.transform = ''; };
+  // toque (iPhone e Android): eventos de toque diretos, os mais confiáveis
+  jz.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; if (t) jstart(t.identifier, t.clientX, t.clientY); }, { passive: false });
+  jz.addEventListener('touchmove', e => { e.preventDefault(); if (!In.jon) return; for (const t of e.changedTouches) if (t.identifier === In.jid) jset(t.clientX, t.clientY); }, { passive: false });
+  const tend = e => { if (!In.jon) return; for (const t of e.changedTouches) if (t.identifier === In.jid) jend(); };
+  jz.addEventListener('touchend', tend); jz.addEventListener('touchcancel', tend);
+  // mouse (computador)
+  const isT = e => hasTouch && e.pointerType === 'touch';
+  jz.addEventListener('pointerdown', e => { if (isT(e)) return; jstart('m' + e.pointerId, e.clientX, e.clientY); try { jz.setPointerCapture(e.pointerId); } catch (x) { } e.preventDefault(); });
+  jz.addEventListener('pointermove', e => { if (isT(e) || !In.jon || In.jid !== 'm' + e.pointerId) return; jset(e.clientX, e.clientY); });
+  const pend = e => { if (isT(e) || In.jid !== 'm' + e.pointerId) return; jend(); };
+  addEventListener('pointerup', pend); addEventListener('pointercancel', pend);
   document.addEventListener('visibilitychange', () => { if (document.hidden) jend(); });
   UI.jend = jend;
   const press = (id, fn) => $(id).addEventListener('pointerdown', e => { Au.init(); fn(); e.preventDefault(); });
@@ -226,7 +233,8 @@ UI.tick = function (dt) {
   const cs = JSON.stringify(V.slots.map(q => [q.k, q.ch, q.w, q.al, q.nm]));
   if (cs !== UI.sig.chips) { UI.sig.chips = cs; $('chips').innerHTML = V.slots.map((q, i) => q.k === '-' ? '' : `<div class="pchip${q.al ? '' : ' dead'}${i === mi ? ' me' : ''}">${avatar(q.ch, SLOTCOL[i], 'sm')}<span>${'●'.repeat(q.w)}${'○'.repeat(Math.max(0, WINS - q.w))}</span></div>`).join(''); }
   const spec = !s || !s.al;
-  show('controls', !spec); show('spec', spec && V.ph === 'play'); if (spec) { if (In.jid >= 0) UI.jend(); $('spec').textContent = s ? 'Você foi eliminado — assistindo ao resto da rodada' : 'Assistindo — você entra na próxima partida'; }
+  if (spec !== UI.specWas) { UI.specWas = spec; fitCamera(); }
+  show('controls', !spec); show('spec', spec && V.ph === 'play'); if (spec) { if (In.jon) UI.jend(); $('spec').textContent = s ? 'Você foi eliminado — assistindo ao resto da rodada' : 'Assistindo — você entra na próxima partida'; }
   if (s) {
     const st = [s.maxB, s.range, s.spd, s.shield, s.kick || s.ch === 3 ? 1 : 0, s.pierce].join();
     if (st !== UI.sig.stats) { UI.sig.stats = st; const it = (t, v) => `<span><img src="${G.icons[t]}" alt="">${v}</span>`; $('stats').innerHTML = it(0, s.maxB) + it(1, s.range) + it(2, s.spd) + (s.shield ? it(3, '') : '') + (s.kick || s.ch === 3 ? it(4, '') : '') + (s.pierce ? it(5, '') : ''); }
