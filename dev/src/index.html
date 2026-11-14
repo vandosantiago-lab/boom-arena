@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Boom Arena 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;background:#0a0d18;color:#eef1f8;font:15px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-user-select:none;user-select:none;touch-action:none;overscroll-behavior:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block}
+.hide{display:none!important}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer;padding:0}
+button:disabled{opacity:.45;cursor:default}
+.screen{position:fixed;inset:0;display:flex;overflow-y:auto;padding:14px;background:linear-gradient(rgba(6,8,18,.5),rgba(6,8,18,.82));touch-action:pan-y;z-index:20}
+.panel{width:min(430px,100%);margin:auto;background:rgba(14,17,30,.86);border:1px solid rgba(255,255,255,.1);border-radius:22px;padding:18px 16px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.logo{font-family:"Russo One",system-ui,sans-serif;font-size:40px;line-height:.95;margin:2px 0 12px;text-align:center;letter-spacing:1px;color:#fff;text-shadow:0 3px 0 #b34700,0 0 26px rgba(255,140,0,.55)}
+.logo span{color:#ffb300}.logo small{display:inline-block;font-size:15px;background:#ff4d4d;color:#fff;border-radius:7px;padding:3px 7px;margin-left:6px;vertical-align:middle;text-shadow:none;letter-spacing:0}
+.field{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:13px;color:#aab3c8}
+input{flex:1;min-width:0;font:inherit;font-size:16px;color:#fff;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:10px 12px;outline:none;-webkit-user-select:text;user-select:text}
+input:focus{border-color:#ffb300}
+.sec{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#8f99b3;margin:4px 0 8px}
+.chars{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.ch{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px 8px;border-radius:14px;background:rgba(255,255,255,.05);border:2px solid transparent;min-width:0}
+.ch img{width:100%;aspect-ratio:9/10;object-fit:cover;border-radius:10px;background:#1a2033}
+.ch b{font-size:14px}.ch i{font-style:normal;font-size:10.5px;color:#aab3c8;text-align:center;line-height:1.15}
+.ch.sel{border-color:var(--c);background:rgba(255,255,255,.1);box-shadow:0 0 18px -4px var(--c)}
+#chdesc{font-size:13px;color:#c9d0e0;min-height:36px;margin:8px 2px 12px;text-align:center}
+.btn{display:block;width:100%;padding:13px 12px;border-radius:14px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.16);font-weight:700;font-size:15px;margin-top:8px}
+.btn.pri{background:linear-gradient(#ffc233,#ff9500);color:#231300;border-color:#ffd97a;box-shadow:0 5px 0 #a85600}
+.btn.pri:active{transform:translateY(3px);box-shadow:0 2px 0 #a85600}
+.row{display:flex;gap:8px}.row .btn{flex:1}
+#joinbox{display:flex;gap:8px;margin-top:8px;align-items:stretch}#joinbox input{text-transform:uppercase;letter-spacing:.3em;text-align:center;font-weight:800}#joinbox .btn{width:auto;margin:0;padding:0 18px}
+.hint{font-size:12px;color:#8f99b3;text-align:center;margin-top:10px;min-height:16px}
+.link{display:block;margin:10px auto 0;color:#ffb300;font-size:13px;font-weight:600;text-decoration:underline;padding:6px}
+#lb-head{display:flex;align-items:center;justify-content:center;gap:16px}
+.code{text-align:center}.code small{display:block;font-size:11px;letter-spacing:.12em;color:#8f99b3}
+.code b{font-family:"Russo One",system-ui,sans-serif;font-size:44px;letter-spacing:.14em;color:#ffb300;line-height:1.1}.code b.solo{letter-spacing:.02em}
+.code .link{margin-top:0}
+#qr{width:104px;height:104px;border-radius:10px}
+.slot{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.05);margin-top:6px;min-height:52px}
+.slot.empty{color:#7c869e}.slot div{flex:1;min-width:0}.slot b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.slot i{font-style:normal;font-size:12px;color:#aab3c8}.slot u{text-decoration:none;font-size:12px;color:#ffb300;font-weight:700;white-space:nowrap}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.av{display:inline-flex;width:38px;height:38px;border-radius:50%;border:3px solid;overflow:hidden;flex:none;align-items:center;justify-content:center;font-weight:800}
+.av img{width:100%;height:100%;object-fit:cover;object-position:50% 22%}
+.av.sm{width:30px;height:30px;border-width:2px}.av.big{width:92px;height:92px;border-width:4px;margin:0 auto}
+.srow{display:flex;align-items:center;gap:8px;margin-top:10px}.srow>span{width:92px;flex:none;font-size:13px;color:#aab3c8}
+.chips{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+.chip{padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);font-size:13px;font-weight:600}
+.chip.sel{background:#ffb300;color:#231300;border-color:#ffd97a}.chip:disabled{opacity:.6}.chip.sel:disabled{opacity:1}
+.av-chip{padding:2px;background:none;border-color:transparent}.av-chip.sel{background:#ffb300}
+#end-top{text-align:center}#end-top h2{font-family:"Russo One",system-ui,sans-serif;margin:10px 0 2px;font-size:24px}#end-top p{margin:0 0 8px;color:#aab3c8;font-size:13px}
+.modal{position:fixed;inset:0;display:flex;padding:14px;background:rgba(4,6,14,.7);z-index:40;overflow-y:auto;touch-action:pan-y}
+.modal h3{margin:0 0 6px;font-family:"Russo One",system-ui,sans-serif;font-size:20px}
+.modal p{margin:6px 0;font-size:13.5px;color:#d5dbea}
+.pu{display:flex;align-items:center;gap:10px;font-size:13.5px;margin-top:6px}.pu img{width:30px;height:30px;border-radius:8px;padding:3px;flex:none}
+#hud{position:fixed;inset:0;z-index:10;pointer-events:none}
+#hud button,#joyzone,#emos{pointer-events:auto}
+#top{position:absolute;left:0;right:0;top:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:linear-gradient(rgba(6,8,18,.75),rgba(6,8,18,0))}
+#chips{display:flex;gap:5px}
+.pchip{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:9px;line-height:1;color:#ffd23d}.pchip.dead .av{filter:grayscale(1) brightness(.5)}.pchip.me .av{box-shadow:0 0 0 2px #fff}
+#clock{position:absolute;left:50%;top:5px;transform:translateX(-50%);text-align:center;pointer-events:none}
+#tm{display:block;font-family:"Russo One",system-ui,sans-serif;font-size:24px;line-height:1.05;text-shadow:0 2px 6px #000}#rd{font-size:11px;color:#c9d0e0;text-shadow:0 1px 4px #000;white-space:nowrap}
+#clock.hot #tm{color:#ff5a4d}#clock.hot #rd{color:#ffb0a8;font-weight:700}
+#b-set{width:40px;height:40px;border-radius:12px;background:rgba(14,17,30,.7);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}
+#b-set svg{width:20px;height:20px}
+#stats{position:absolute;left:8px;top:58px;display:flex;gap:5px;flex-wrap:wrap;max-width:60%}
+#stats span{display:flex;align-items:center;gap:3px;background:rgba(14,17,30,.72);border-radius:999px;padding:3px 8px 3px 4px;font-weight:800;font-size:13px}#stats img{width:18px;height:18px}
+#joyzone{position:absolute;left:0;bottom:0;width:56%;height:min(64%,340px)}
+#joy{position:fixed;left:84px;bottom:92px;width:112px;height:112px;margin:0;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.3);transform:translate(-50%,50%);opacity:.5;pointer-events:none}
+#joy.on{bottom:auto;transform:translate(-50%,-50%);opacity:.95}
+#joyk{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.85);transform:translate(-50%,-50%);box-shadow:0 4px 12px rgba(0,0,0,.4)}
+#btns{position:absolute;right:10px;bottom:16px;width:184px;height:176px}
+#bt-bomb{position:absolute;right:0;bottom:0;width:98px;height:98px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ff7a5c,#d12a12);border:3px solid rgba(255,255,255,.75);box-shadow:0 6px 0 #7a1405,0 10px 22px rgba(0,0,0,.45)}
+#bt-bomb img{width:58px;height:58px;pointer-events:none}#bt-bomb:active{transform:translateY(4px);box-shadow:0 2px 0 #7a1405}
+#bt-ab{position:absolute;left:0;bottom:62px;width:78px;height:78px;border-radius:50%;--c:#ffb300;--p:0%;background:var(--c);border:3px solid rgba(255,255,255,.75);box-shadow:0 5px 0 rgba(0,0,0,.45);overflow:hidden;color:#fff}
+#bt-ab::before{content:"";position:absolute;inset:0;background:conic-gradient(rgba(0,0,0,.72) var(--p),transparent 0)}
+#ab-l{position:relative;font-size:11.5px;font-weight:900;letter-spacing:.02em;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+#bt-ab.cool{filter:saturate(.5)}#bt-ab.arm{animation:arm .5s infinite alternate}@keyframes arm{to{box-shadow:0 0 0 6px rgba(255,60,60,.55),0 5px 0 rgba(0,0,0,.45)}}
+#bt-emo{position:absolute;right:6px;bottom:112px;width:48px;height:48px;border-radius:50%;background:rgba(14,17,30,.72);border:2px solid rgba(255,255,255,.4);font-size:22px}
+#emos{position:absolute;right:10px;bottom:206px;display:flex;gap:6px;background:rgba(14,17,30,.88);border-radius:999px;padding:6px 8px;border:1px solid rgba(255,255,255,.18)}#emos button{font-size:26px;width:44px;height:44px}
+#spec{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);background:rgba(14,17,30,.82);border-radius:999px;padding:9px 16px;font-size:13px;font-weight:600;white-space:nowrap;max-width:94%;overflow:hidden;text-overflow:ellipsis}
+#banner{position:fixed;left:0;right:0;top:27%;text-align:center;z-index:15;pointer-events:none}
+#banner b{display:block;font-family:"Russo One",system-ui,sans-serif;font-size:clamp(34px,11vw,72px);line-height:1.05;color:#fff;text-shadow:0 4px 0 #b34700,0 0 30px rgba(255,140,0,.7);padding:0 10px}
+#banner span{display:inline-block;margin-top:6px;font-size:14px;font-weight:700;background:rgba(14,17,30,.75);padding:4px 12px;border-radius:999px}
+#banner.pop b{animation:pop .35s cubic-bezier(.2,1.6,.4,1)}@keyframes pop{from{transform:scale(.4);opacity:0}}
+.lab{position:fixed;left:0;top:0;z-index:5;pointer-events:none;white-space:nowrap;font-weight:900}
+.lab.emo{font-size:30px;filter:drop-shadow(0 2px 4px #000)}
+.lab.you{font-size:11px;background:rgba(14,17,30,.85);padding:3px 8px;border-radius:999px;border:1.5px solid currentColor}
+#toast{position:fixed;left:50%;top:74px;transform:translate(-50%,-12px);background:rgba(14,17,30,.92);border:1px solid rgba(255,255,255,.18);padding:9px 16px;border-radius:999px;font-size:13.5px;font-weight:600;opacity:0;transition:.2s;z-index:60;pointer-events:none;max-width:92%;text-align:center}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#loaderr{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:#0a0d18;z-index:99}
+@media (orientation:landscape) and (max-height:520px){
+ .logo{font-size:30px;margin-bottom:8px}.panel{padding:12px 14px}#chdesc{min-height:0;margin:6px 2px 8px}
+ #joyzone{width:36%;height:78%}#btns{transform:scale(.9);transform-origin:100% 100%}
+ .ch img{aspect-ratio:9/6}
+}
+@media (prefers-reduced-motion:reduce){#banner.pop b,#bt-ab.arm{animation:none}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+
+<div id="hud" class="hide">
+  <div id="top">
+    <div id="chips"></div>
+    <div id="clock"><b id="tm">2:00</b><span id="rd">Rodada 1</span></div>
+    <button id="b-set" aria-label="Configurações"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></button>
+  </div>
+  <div id="stats"></div>
+  <div id="controls">
+    <div id="joyzone"></div>
+    <div id="joy"><div id="joyk"></div></div>
+    <div id="btns">
+      <button id="bt-emo" aria-label="Emotes">😀</button>
+      <button id="bt-ab" aria-label="Habilidade"><span id="ab-l">PODER</span></button>
+      <button id="bt-bomb" aria-label="Soltar bomba"></button>
+    </div>
+    <div id="emos" class="hide"></div>
+  </div>
+  <div id="spec" class="hide"></div>
+</div>
+<div id="banner" class="hide"></div>
+
+<div id="home" class="screen">
+  <div class="panel">
+    <h1 class="logo">BOOM <span>ARENA</span><small>3D</small></h1>
+    <label class="field">Seu nome <input id="nm" maxlength="12" placeholder="Jogador" autocomplete="off"></label>
+    <div class="sec">Escolha seu personagem</div>
+    <div id="chars" class="chars"></div>
+    <div id="chdesc"></div>
+    <button id="b-solo" class="btn pri">Jogar solo contra bots</button>
+    <div class="row"><button id="b-create" class="btn" disabled>Criar sala</button><button id="b-join" class="btn" disabled>Entrar em sala</button></div>
+    <div id="joinbox" class="hide"><input id="code" maxlength="4" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters"><button id="b-go" class="btn pri">Entrar</button></div>
+    <div id="netmsg" class="hint">Conectando ao multiplayer…</div>
+    <button id="b-how" class="link">Como jogar</button>
+  </div>
+</div>
+
+<div id="lobby" class="screen hide">
+  <div class="panel">
+    <div id="lb-head"></div>
+    <div id="lb-hint" class="hint"></div>
+    <div id="lb-slots"></div>
+    <div id="lb-opts"></div>
+    <button id="b-start" class="btn pri">Começar partida</button>
+    <div id="lb-wait" class="hint"></div>
+    <button id="b-leave" class="link">Sair</button>
+  </div>
+</div>
+
+<div id="end" class="screen hide">
+  <div class="panel">
+    <div id="end-top"></div>
+    <div id="end-list"></div>
+    <button id="b-again" class="btn pri">Jogar de novo</button>
+    <div id="end-wait" class="hint"></div>
+    <button id="b-exit" class="link">Sair</button>
+  </div>
+</div>
+
+<div id="settings" class="modal hide"><div class="panel"><h3>Configurações</h3><div id="set-body"></div></div></div>
+
+<div id="how" class="modal hide"><div class="panel">
+  <h3>Como jogar</h3>
+  <p>Solte bombas para abrir caminho pelos blocos e eliminar os adversários. O último em pé vence a rodada; quem vencer 2 rodadas leva a partida.</p>
+  <p><b>Controles:</b> arraste o lado esquerdo da tela para andar. Botão vermelho solta a bomba; o botão colorido usa o poder do seu personagem. No computador: setas ou WASD, Espaço e E.</p>
+  <p><b>Itens</b> aparecem ao destruir blocos:</p>
+  <div id="how-list"></div>
+  <p><b>Mapas:</b> na Cidade há bueiros que teleportam; na Praia, areia fofa que deixa lento; no Estádio, espinhos que sobem do chão; na Fábrica, esteiras e espinhos. Nos últimos 45 segundos a arena começa a fechar.</p>
+  <button id="b-howx" class="btn pri">Entendi</button>
+</div></div>
+
+<div id="toast"></div>
+<div id="loaderr" class="hide"><div><h2>Não foi possível carregar o jogo</h2><p>Verifique sua conexão com a internet e abra a página de novo.</p></div></div>
+
+<script type="module">
+/*__JS__*/
+</script>
+<script>setTimeout(function(){if(!window.__boomReady)document.getElementById('loaderr').classList.remove('hide')},12000)</script>
+</body>
+</html>
