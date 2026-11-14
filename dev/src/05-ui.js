@@ -156,6 +156,7 @@ UI.init = function () {
   addEventListener('keyup', e => { In.keys[e.code] = false; });
   addEventListener('blur', () => { In.keys = {}; });
   document.addEventListener('contextmenu', e => e.preventDefault());
+  for (const t of ['touchend', 'click']) document.addEventListener(t, () => Au.init(), { passive: true });
   const m = /^#sala-([a-z0-9]{4})$/i.exec(location.hash || ''); if (m) { $('code').value = m[1].toUpperCase(); show('joinbox', true); }
 };
 UI.netReady = function () { const ok = !!Net.room; $('b-create').disabled = !ok; $('b-join').disabled = !ok; $('netmsg').textContent = ok ? 'Multiplayer: crie uma sala e passe o código ou o QR para até 3 pessoas.' : 'Multiplayer indisponível nesta visualização — o modo solo funciona normalmente.'; };
