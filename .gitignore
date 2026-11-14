@@ -1,0 +1,4 @@
+dev/node_modules/
+dev/dist/
+dev/test/shots/
+dev/package-lock.json
