@@ -1,5 +1,5 @@
 // ===================== JOGO, ENTRADA E INTERFACE =====================
-const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2 }, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
+const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4 }, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
 const In = { x: 0, y: 0, bomb: false, abil: false, keys: {}, jid: -1, ox: 0, oy: 0, jx: 0, jy: 0 };
 const UI = { ph: '', ep: -1, phT: 0, c: -1, labs: [], sig: {}, bannerT: 0, toastT: 0, cdWas: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -70,11 +70,11 @@ function startMatch() {
 function lobbyBuild() {
   const hs = [{ peer: Net.myPeer || 'H', nm: Game.name, ch: Game.ch, jt: -1 }];
   if (Game.mode === 'host') { findSelf(); hs[0].peer = Net.myPeer || 'H'; for (const p of Net.chan.peers()) { if (p.isMe && p.sameTab) continue; const pr = p.presence; if (!pr || pr.v !== 1 || pr.host) continue; hs.push({ peer: p.peer, nm: cleanName(pr.nm), ch: pr.ch & 3, jt: +pr.jt || 0 }); } hs.sort((a, b) => a.jt - b.jt); }
-  const used = hs.slice(0, 4).map(h => h.ch), free = [0, 1, 2, 3].filter(c => !used.includes(c)); let fi = 0;
+  const size = clamp(Game.opt.size | 0, 2, 4), used = hs.slice(0, size).map(h => h.ch), free = [0, 1, 2, 3].filter(c => !used.includes(c)); let fi = 0;
   for (let i = 0; i < 4; i++) {
-    const s = V.slots[i], h = hs[i];
+    const s = V.slots[i], h = i < size ? hs[i] : null;
     if (h) { s.k = 'h'; s.peer = h.peer; s.nm = h.nm; s.ch = h.ch; }
-    else if (Game.opt.bots > 0) { s.k = 'b'; s.peer = null; s.ch = free.length ? free[fi++ % free.length] : i; s.nm = 'Bot ' + CHARS[s.ch].name; }
+    else if (i < size && Game.opt.bots > 0) { s.k = 'b'; s.peer = null; s.ch = free.length ? free[fi++ % free.length] : i; s.nm = 'Bot ' + CHARS[s.ch].name; }
     else { s.k = '-'; s.peer = null; s.nm = ''; }
     s.al = 0;
   }
@@ -152,18 +152,19 @@ UI.renderSettings = function () {
   }
 };
 UI.renderLobby = function () {
-  const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots] : (Net.opt || [-1, 0]);
+  const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots, Game.opt.size] : (Net.opt || [-1, 0, 4]), size = clamp(opt[2] | 0 || 4, 2, 4);
   const sig = JSON.stringify([Game.mode, Net.code, mi, opt, V.slots.map(s => [s.k, s.nm, s.ch, s.peer])]); if (sig === UI.sig.lobby) return; UI.sig.lobby = sig;
   $('lb-head').innerHTML = online ? `<div class="code"><small>CÓDIGO DA SALA</small><b>${esc(Net.code)}</b><button class="link" id="b-copy">Copiar código</button></div><canvas id="qr" width="132" height="132" class="hide"></canvas>` : `<div class="code"><small>MODO</small><b class="solo">Solo</b></div>`;
   $('lb-hint').textContent = online ? (HOSTED ? 'Os outros apontam a câmera do celular para o QR, ou abrem este mesmo link, tocam em "Entrar em sala" e digitam o código.' : 'Os outros jogadores abrem este mesmo jogo, tocam em "Entrar em sala" e digitam o código.') : 'Você contra três bots. Escolha o mapa e a dificuldade.';
-  $('lb-slots').innerHTML = V.slots.map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${SLOTCOL[i]}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${SLOTCOL[i]}"></span>${avatar(s.ch, SLOTCOL[i])}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i></div><u>${i === mi ? 'Você' : s.k === 'b' ? 'Bot' : i === 0 ? 'Anfitrião' : ''}</u></div>`).join('');
+  $('lb-slots').innerHTML = V.slots.slice(0, size).map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${SLOTCOL[i]}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${SLOTCOL[i]}"></span>${avatar(s.ch, SLOTCOL[i])}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i></div><u>${i === mi ? 'Você' : s.k === 'b' ? 'Bot' : i === 0 ? 'Anfitrião' : ''}</u></div>`).join('');
   const chips = (key, names, cur, first) => names.map((n, i) => `<button class="chip${i + first === cur ? ' sel' : ''}" data-k="${key}" data-v="${i + first}" ${host ? '' : 'disabled'}>${n}</button>`).join('');
   $('lb-opts').innerHTML = `<div class="srow"><span>Seu personagem</span><div class="chips">${CHARS.map((c, i) => `<button class="chip av-chip${i === Game.ch ? ' sel' : ''}" data-k="ch" data-v="${i}">${avatar(i, i === Game.ch ? '#fff' : 'transparent', 'sm')}</button>`).join('')}</div></div>
+   <div class="srow"><span>Jogadores</span><div class="chips">${chips('size', ['2', '3', '4'], size, 2)}</div></div>
    <div class="srow"><span>Mapa</span><div class="chips">${chips('map', ['Sorteio', ...MAPS], opt[0], -1)}</div></div>
    <div class="srow"><span>Bots</span><div class="chips">${chips('bots', online ? ['Sem bots', ...DIFFS] : DIFFS, opt[1], online ? 0 : 1)}</div></div>`;
   const n = V.slots.filter(s => s.k !== '-').length;
   $('b-start').classList.toggle('hide', !host); $('b-start').disabled = n < 2;
-  $('lb-wait').textContent = host ? (n < 2 ? 'Aguardando mais jogadores ou ative os bots.' : '') : (mi < 0 ? 'Sala cheia ou partida em andamento — aguarde a próxima.' : 'Aguardando o anfitrião começar…');
+  $('lb-wait').textContent = host ? (n < 2 ? 'Aguardando mais jogadores ou ative os bots.' : '') : (mi < 0 ? 'Sala cheia ou partida em andamento — aguarde uma vaga.' : 'Aguardando o anfitrião começar…');
   if (online) {
     $('b-copy').onclick = () => { try { navigator.clipboard.writeText(Net.code).then(() => toast('Código copiado'), () => toast('Código: ' + Net.code)); } catch (e) { toast('Código: ' + Net.code); } };
     if (artUrl()) { try { const q = qrcode(0, 'M'); q.addData(artUrl() + '#sala-' + Net.code.toLowerCase()); q.make(); const cvs = $('qr'), x = cvs.getContext('2d'), nn = q.getModuleCount(), sz = Math.floor(124 / nn), off = (132 - sz * nn) / 2; x.fillStyle = '#fff'; x.fillRect(0, 0, 132, 132); x.fillStyle = '#000'; for (let r = 0; r < nn; r++) for (let c = 0; c < nn; c++) if (q.isDark(r, c)) x.fillRect(off + c * sz, off + r * sz, sz, sz); cvs.classList.remove('hide'); } catch (e) { } }
