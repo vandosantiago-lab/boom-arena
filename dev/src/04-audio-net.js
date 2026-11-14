@@ -28,6 +28,29 @@ const Au = {
   buzz(ms) { if (!this.vib) return; try { if (navigator.vibrate) navigator.vibrate(ms); } catch (e) { } },
 };
 
+// Música: trilha chiptune original, gerada na hora
+const Mu = {
+  on: true, playing: false, timer: 0, next: 0, step: 0, g: null,
+  LEAD: [76, 79, 84, 79, 76, 79, 84, 0, 74, 79, 83, 79, 74, 79, 83, 0, 72, 76, 81, 76, 72, 76, 81, 79, 77, 81, 84, 81, 79, 77, 76, 74, 76, 0, 76, 79, 84, 0, 79, 76, 74, 0, 74, 79, 83, 0, 79, 74, 77, 81, 84, 89, 88, 84, 81, 77, 79, 83, 86, 91, 0, 86, 83, 79],
+  BASS: [48, 43, 45, 41, 48, 43, 41, 43],
+  f: m => 440 * Math.pow(2, (m - 69) / 12),
+  start() { if (this.playing || !Au.ctx) return; if (!this.g) { this.g = Au.ctx.createGain(); this.g.gain.value = 0.55; this.g.connect(Au.master); } this.playing = true; this.next = Au.ctx.currentTime + 0.08; this.step = 0; this.timer = setInterval(() => this.tick(), 70); },
+  stop() { if (!this.playing) return; this.playing = false; clearInterval(this.timer); },
+  voice(type, freq, t, dur, vol) { const c = Au.ctx, o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = freq; g.gain.setValueAtTime(vol, t); g.gain.setValueAtTime(vol, t + dur * 0.7); g.gain.linearRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(this.g); o.start(t); o.stop(t + dur + 0.02); },
+  tick() {
+    const c = Au.ctx; if (!c || c.state !== 'running') return;
+    const d = 60 / ((V.ph === 'play' && V.t <= SHRINK_AT) ? 184 : 148) / 2;
+    if (this.next < c.currentTime) this.next = c.currentTime + 0.05;
+    while (this.next < c.currentTime + 0.25) {
+      const i = this.step, t = this.next, l = this.LEAD[i], b = this.BASS[i >> 3];
+      if (l) this.voice('square', this.f(l), t, d * 0.92, 0.05);
+      this.voice('triangle', this.f(b + (i & 1 ? 12 : 0)), t, d * 0.9, 0.13);
+      if (i & 1) { const s = c.createBufferSource(), hp = c.createBiquadFilter(), g = c.createGain(); s.buffer = Au.noise; hp.type = 'highpass'; hp.frequency.value = 6000; g.gain.setValueAtTime(0.035, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); s.connect(hp); hp.connect(g); g.connect(this.g); s.start(t, Math.random() * 0.5, 0.06); }
+      this.next += d; this.step = (i + 1) % 64;
+    }
+  },
+};
+
 // ===================== REDE (salas em tempo real) =====================
 const ART_URL = 'https://claude.ai/artifact/C2d8SVBCHgbuGeJdBjc5Zd';
 const HOSTED = /*__HOSTED__*/false;
@@ -104,7 +127,7 @@ function snap() {
 }
 function applySnap(g) {
   V.ph = String(g.ph); V.rnd = g.rnd | 0; V.t = g.t / 10; V.el = g.el / 10; V.c = g.c | 0; V.win = g.win | 0; V.mwin = g.mw | 0; V.sh = g.sh | 0; V.ld = Array.isArray(g.ld) ? [+g.ld[0], +g.ld[1]] : null; V.diff = clamp(g.df | 0, 0, 2); Net.opt = Array.isArray(g.o) ? g.o : null;
-  if ((g.map | 0) !== V.map || !V.tiles) { V.map = clamp(g.map | 0, 0, 3); V.tiles = mapTiles(V.map); }
+  if ((g.map | 0) !== V.map || !V.tiles) { V.map = clamp(g.map | 0, 0, 4); V.tiles = mapTiles(V.map); }
   const gr = String(g.gr); for (let i = 0; i < N; i++) { const k = GCH.indexOf(gr[i]); V.grid[i] = k < 0 ? 0 : k; }
   for (let i = 0; i < 4; i++) {
     const a = g.s && g.s[i], s = V.slots[i]; if (!Array.isArray(a)) { s.k = '-'; continue; }

@@ -1,5 +1,5 @@
 // ===================== JOGO, ENTRADA E INTERFACE =====================
-const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4 }, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
+const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4 }, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
 const In = { x: 0, y: 0, bomb: false, abil: false, keys: {}, jid: -1, ox: 0, oy: 0, jx: 0, jy: 0 };
 const UI = { ph: '', ep: -1, phT: 0, c: -1, labs: [], sig: {}, bannerT: 0, toastT: 0, cdWas: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -87,6 +87,18 @@ function onPickup(i, type) { if (i === myIdx()) { Au.play('pick'); toast(PU_NAME
 function onDeath(i) { Au.play('die'); if (i === myIdx()) Au.buzz([120, 60, 180]); }
 function emote(id) { Au.play('emo'); const i = myIdx(); if (i < 0) return; if (isSim()) { const s = V.slots[i]; s.e = [s.e[0] + 1, id]; } else { Net.em = [Net.em[0] + 1, id]; const s = V.slots[i]; G.eSeen[i] = s.e[0]; G.emoT[i] = 2.4; UI.labs[i].textContent = EMOTES[id]; UI.labs[i].className = 'lab emo'; } }
 
+// ---------- tela cheia ----------
+function toggleFull() {
+  const d = document, el = d.documentElement, cur = d.fullscreenElement || d.webkitFullscreenElement;
+  try {
+    if (cur) { (d.exitFullscreen || d.webkitExitFullscreen).call(d); return; }
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (!req) return toast('No iPhone: toque em Compartilhar e depois em "Adicionar à Tela de Início" para jogar em tela cheia.', 6000);
+    const p = req.call(el, { navigationUI: 'hide' });
+    if (p && p.then) p.then(() => { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => { }); } catch (e) { } }).catch(() => toast('Este navegador não liberou a tela cheia.'));
+  } catch (e) { toast('Este navegador não liberou a tela cheia.'); }
+}
+
 // ---------- interface ----------
 let toastTimer = 0, bannerTimer = 0;
 function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), ms); }
@@ -96,7 +108,7 @@ function avatar(ch, col, cls = '') { const src = G.portraits[ch]; return `<span 
 
 UI.init = function () {
   const L = $('labels'); for (let i = 0; i < 4; i++) { const d = document.createElement('div'); d.className = 'lab'; d.style.display = 'none'; d.style.color = SLOTCOL[i]; L.appendChild(d); UI.labs.push(d); }
-  try { Game.name = cleanName(localStorage.getItem('boom.nm') || 'Jogador'); Game.ch = clamp(parseInt(localStorage.getItem('boom.ch')) || 0, 0, 3); Au.on = localStorage.getItem('boom.snd') !== '0'; Au.vib = localStorage.getItem('boom.vib') !== '0'; } catch (e) { }
+  try { Game.name = cleanName(localStorage.getItem('boom.nm') || 'Jogador'); Game.ch = clamp(parseInt(localStorage.getItem('boom.ch')) || 0, 0, 3); Au.on = localStorage.getItem('boom.snd') !== '0'; Au.vib = localStorage.getItem('boom.vib') !== '0'; Mu.on = localStorage.getItem('boom.mus') !== '0'; Game.cam = clamp(parseInt(localStorage.getItem('boom.cam')) || 0, 0, 2); } catch (e) { }
   $('nm').value = Game.name === 'Jogador' ? '' : Game.name;
   $('nm').addEventListener('input', () => { Game.name = cleanName($('nm').value); try { localStorage.setItem('boom.nm', Game.name); } catch (e) { } });
   UI.renderChars();
@@ -106,6 +118,7 @@ UI.init = function () {
   tap('b-join', () => { show('joinbox', $('joinbox').classList.contains('hide')); $('code').focus(); });
   tap('b-go', () => joinRoom($('code').value));
   $('code').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom($('code').value); });
+  tap('b-full', () => toggleFull());
   tap('b-how', () => show('how', true)); tap('b-howx', () => show('how', false));
   tap('b-start', () => startMatch());
   tap('b-leave', () => goHome());
@@ -116,10 +129,16 @@ UI.init = function () {
   $('how-list').innerHTML = [0, 1, 2, 3, 4, 5].map(t => `<div class="pu"><img src="${G.icons[t]}" style="background:${PU_BG[t]}" alt=""><span>${['Mais uma bomba ao mesmo tempo', 'Explosão alcança mais longe', 'Você anda mais rápido', 'Aguenta uma explosão', 'Chuta bombas ao encostar nelas', 'Explosão atravessa blocos'][t]}</span></div>`).join('');
   // controles
   const jz = $('joyzone'), joy = $('joy'), knob = $('joyk');
-  jz.addEventListener('pointerdown', e => { if (In.jid >= 0) return; Au.init(); In.jid = e.pointerId; In.ox = e.clientX; In.oy = e.clientY; joy.style.left = e.clientX + 'px'; joy.style.top = e.clientY + 'px'; joy.classList.add('on'); knob.style.transform = 'translate(-50%,-50%)'; try { jz.setPointerCapture(e.pointerId); } catch (x) { } e.preventDefault(); });
-  jz.addEventListener('pointermove', e => { if (e.pointerId !== In.jid) return; let dx = e.clientX - In.ox, dy = e.clientY - In.oy; const m = Math.hypot(dx, dy), R = 46; if (m > R) { dx *= R / m; dy *= R / m; } knob.style.transform = `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`; In.x = Math.abs(dx) > 9 ? dx / R : 0; In.y = Math.abs(dy) > 9 ? dy / R : 0; e.preventDefault(); });
-  const jend = e => { if (e.pointerId !== In.jid) return; In.jid = -1; In.x = In.y = 0; joy.classList.remove('on'); joy.style.left = ''; joy.style.top = ''; knob.style.transform = ''; };
-  jz.addEventListener('pointerup', jend); jz.addEventListener('pointercancel', jend); jz.addEventListener('lostpointercapture', jend);
+  const R = 44, DEAD = 7;
+  const jset = (x, y) => { let dx = x - In.ox, dy = y - In.oy; const m = Math.hypot(dx, dy); if (m > R) { In.ox += dx * (1 - R / m); In.oy += dy * (1 - R / m); dx *= R / m; dy *= R / m; joy.style.left = In.ox + 'px'; joy.style.top = In.oy + 'px'; } knob.style.transform = `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`; if (m > DEAD) { In.x = dx / Math.min(m, R); In.y = dy / Math.min(m, R); } else In.x = In.y = 0; };
+  const jend = e => { if (e && e.pointerId !== undefined && e.pointerId !== In.jid) return; In.jid = -1; In.x = In.y = 0; joy.classList.remove('on'); joy.style.left = ''; joy.style.top = ''; knob.style.transform = ''; };
+  jz.addEventListener('pointerdown', e => { Au.init(); In.jid = e.pointerId; In.ox = e.clientX; In.oy = e.clientY; In.x = In.y = 0; joy.style.left = e.clientX + 'px'; joy.style.top = e.clientY + 'px'; joy.classList.add('on'); knob.style.transform = 'translate(-50%,-50%)'; try { jz.setPointerCapture(e.pointerId); } catch (x) { } e.preventDefault(); });
+  jz.addEventListener('pointermove', e => { if (e.pointerId !== In.jid) return; const ev = e.getCoalescedEvents ? e.getCoalescedEvents() : null, l = ev && ev.length ? ev[ev.length - 1] : e; jset(l.clientX, l.clientY); e.preventDefault(); });
+  jz.addEventListener('pointerup', jend); jz.addEventListener('pointercancel', jend);
+  addEventListener('pointerup', jend); addEventListener('pointercancel', jend);
+  for (const t of ['touchstart', 'touchmove']) jz.addEventListener(t, e => e.preventDefault(), { passive: false });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) jend(); });
+  UI.jend = jend;
   const press = (id, fn) => $(id).addEventListener('pointerdown', e => { Au.init(); fn(); e.preventDefault(); });
   press('bt-bomb', () => { In.bomb = true; }); press('bt-ab', () => { In.abil = true; });
   press('bt-emo', () => show('emos', $('emos').classList.contains('hide')));
@@ -140,13 +159,13 @@ UI.renderChars = function () {
 UI.pickChar = function (c) { Game.ch = c; try { localStorage.setItem('boom.ch', c); } catch (e) { } UI.renderChars(); if (Game.mode === 'host' && Net.chan) Net.chan.presence({ ch: c, nm: Game.name }); };
 UI.renderSettings = function () {
   const row = (label, opts, cur, key) => `<div class="srow"><span>${label}</span><div class="chips">${opts.map((o, i) => `<button class="chip${i === cur ? ' sel' : ''}" data-k="${key}" data-v="${i}">${o}</button>`).join('')}</div></div>`;
-  $('set-body').innerHTML = row('Gráficos', ['Leve', 'Médio', 'Máximo'], G.q, 'q') + row('Som', ['Desligado', 'Ligado'], Au.on ? 1 : 0, 'snd') + row('Vibração', ['Desligada', 'Ligada'], Au.vib ? 1 : 0, 'vib') + `<button class="btn" id="set-quit">Sair da partida</button><button class="btn pri" id="set-close">Voltar ao jogo</button>`;
+  $('set-body').innerHTML = row('Gráficos', ['Leve', 'Médio', 'Máximo'], G.q, 'q') + row('Câmera', ['Automática', 'Arena inteira', 'Aproximada'], Game.cam, 'cam') + row('Som', ['Desligado', 'Ligado'], Au.on ? 1 : 0, 'snd') + row('Música', ['Desligada', 'Ligada'], Mu.on ? 1 : 0, 'mus') + row('Vibração', ['Desligada', 'Ligada'], Au.vib ? 1 : 0, 'vib') + `<button class="btn" id="set-full">Tela cheia</button><button class="btn" id="set-quit">Sair da partida</button><button class="btn pri" id="set-close">Voltar ao jogo</button>`;
   if (!UI.setBound) {
     UI.setBound = true; $('set-body').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return; Au.init(); Au.play('click');
-      if (b.id === 'set-close') return show('settings', false); if (b.id === 'set-quit') return goHome();
+      if (b.id === 'set-close') return show('settings', false); if (b.id === 'set-quit') return goHome(); if (b.id === 'set-full') return toggleFull();
       const k = b.dataset.k, v = +b.dataset.v; const save = (n, x) => { try { localStorage.setItem(n, x); } catch (e) { } };
-      if (k === 'q') { Game.qLock = true; setQuality(v); save('boom.q', v); } if (k === 'snd') { Au.on = !!v; save('boom.snd', v); } if (k === 'vib') { Au.vib = !!v; save('boom.vib', v); if (v) Au.buzz(40); }
+      if (k === 'q') { Game.qLock = true; setQuality(v); save('boom.q', v); } if (k === 'snd') { Au.on = !!v; save('boom.snd', v); } if (k === 'mus') { Mu.on = !!v; save('boom.mus', v); } if (k === 'cam') { Game.cam = v; save('boom.cam', v); } if (k === 'vib') { Au.vib = !!v; save('boom.vib', v); if (v) Au.buzz(40); }
       UI.renderSettings();
     });
   }
@@ -196,6 +215,7 @@ UI.onPhase = function () {
 UI.tick = function (dt) {
   UI.phT += dt;
   if (V.ph !== UI.ph || V.epoch !== UI.ep || Game.mode !== UI.mode) { UI.ph = V.ph; UI.ep = V.epoch; UI.mode = Game.mode; UI.phT = 0; UI.onPhase(); }
+  if (Game.mode !== 'attract' && (V.ph === 'count' || V.ph === 'play') && Mu.on && Au.on && !document.hidden) Mu.start(); else Mu.stop();
   if (Game.mode === 'attract') return;
   if (V.ph === 'lobby') return UI.renderLobby();
   if (V.ph === 'count' && V.c !== UI.c) { UI.c = V.c; banner(String(V.c), 950, 'Rodada ' + V.rnd + ' · ' + MAPS[V.map]); Au.play('beep'); }
@@ -206,7 +226,7 @@ UI.tick = function (dt) {
   const cs = JSON.stringify(V.slots.map(q => [q.k, q.ch, q.w, q.al, q.nm]));
   if (cs !== UI.sig.chips) { UI.sig.chips = cs; $('chips').innerHTML = V.slots.map((q, i) => q.k === '-' ? '' : `<div class="pchip${q.al ? '' : ' dead'}${i === mi ? ' me' : ''}">${avatar(q.ch, SLOTCOL[i], 'sm')}<span>${'●'.repeat(q.w)}${'○'.repeat(Math.max(0, WINS - q.w))}</span></div>`).join(''); }
   const spec = !s || !s.al;
-  show('controls', !spec); show('spec', spec && V.ph === 'play'); if (spec) { if (In.jid >= 0) { In.jid = -1; In.x = In.y = 0; $('joy').classList.remove('on'); $('joy').style.left = ''; $('joy').style.top = ''; } $('spec').textContent = s ? 'Você foi eliminado — assistindo ao resto da rodada' : 'Assistindo — você entra na próxima partida'; }
+  show('controls', !spec); show('spec', spec && V.ph === 'play'); if (spec) { if (In.jid >= 0) UI.jend(); $('spec').textContent = s ? 'Você foi eliminado — assistindo ao resto da rodada' : 'Assistindo — você entra na próxima partida'; }
   if (s) {
     const st = [s.maxB, s.range, s.spd, s.shield, s.kick || s.ch === 3 ? 1 : 0, s.pierce].join();
     if (st !== UI.sig.stats) { UI.sig.stats = st; const it = (t, v) => `<span><img src="${G.icons[t]}" alt="">${v}</span>`; $('stats').innerHTML = it(0, s.maxB) + it(1, s.range) + it(2, s.spd) + (s.shield ? it(3, '') : '') + (s.kick || s.ch === 3 ? it(4, '') : '') + (s.pierce ? it(5, '') : ''); }

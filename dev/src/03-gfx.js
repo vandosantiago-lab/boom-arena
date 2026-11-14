@@ -24,16 +24,17 @@ const THEMES = [
   { sky: [0x2f8fe8, 0xd8f2ff, 0xd9c08a], fog: 0xbfe6f5, sun: 0xfff1d0, sunI: 2.9, sunPos: [6, 14, 5], hemi: [0xbfe3ff, 0xd9c08a, 0.3], exp: 0.82 },
   { sky: [0x03050c, 0x16233f, 0x0a140a], fog: 0x0a1020, sun: 0xe4ecff, sunI: 3.4, sunPos: [-5, 14, 4], hemi: [0x7f96d9, 0x1a2a1a, 0.5], exp: 1.05 },
   { sky: [0x0d0f12, 0x4a3020, 0x15100c], fog: 0x1a1512, sun: 0xffd6a8, sunI: 3.2, sunPos: [4, 13, 6], hemi: [0x9aa0aa, 0x2a1c14, 0.5], exp: 1.1 },
+  { sky: [0x2f8fe8, 0xbfe8ff, 0x2d6e2b], fog: 0xa8dcf5, sun: 0xfff4dc, sunI: 3.0, sunPos: [-5, 14, 6], hemi: [0xcfe8ff, 0x3f7a35, 0.4], exp: 0.92 },
 ];
 
 function paintFloor(m, tiles) {
   const S = 64, c = cv(GW * S, GH * S), x = c.getContext('2d'), r = mulberry(77 + m), W = c.width, H = c.height;
-  x.fillStyle = ['#3d3f47', '#e0c48c', '#3f9a3a', '#5a5f68'][m]; x.fillRect(0, 0, W, H);
+  x.fillStyle = ['#3d3f47', '#e0c48c', '#3f9a3a', '#5a5f68', '#49b03c'][m]; x.fillRect(0, 0, W, H);
   if (m === 2) for (let i = 0; i < GW; i++) { x.fillStyle = i & 1 ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.08)'; x.fillRect(i * S, 0, S, H); }
   speck(x, W, H, 9000, r, 0.03, 0.1, 1, 3);
   if (m === 1) { x.strokeStyle = 'rgba(120,80,30,.12)'; x.lineWidth = 2; for (let i = 0; i < 60; i++) { const y0 = r() * H; x.beginPath(); for (let px = 0; px <= W; px += 16) x.lineTo(px, y0 + Math.sin(px * 0.03 + i) * 5); x.stroke(); } }
   if (m === 3) for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) { x.strokeStyle = 'rgba(255,255,255,.10)'; x.lineWidth = 2; x.strokeRect(cx * S + 3, cy * S + 3, S - 6, S - 6); x.fillStyle = 'rgba(0,0,0,.45)'; for (const q of [[9, 9], [S - 9, 9], [9, S - 9], [S - 9, S - 9]]) { x.beginPath(); x.arc(cx * S + q[0], cy * S + q[1], 2.4, 0, 7); x.fill(); } }
-  for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) if ((cx + cy) & 1) { x.fillStyle = 'rgba(0,0,0,.075)'; x.fillRect(cx * S, cy * S, S, S); }
+  for (let cy = 0; cy < GH; cy++) for (let cx = 0; cx < GW; cx++) if ((cx + cy) & 1) { x.fillStyle = m === 4 ? 'rgba(0,40,0,.2)' : 'rgba(0,0,0,.075)'; x.fillRect(cx * S, cy * S, S, S); }
   x.strokeStyle = 'rgba(0,0,0,.16)'; x.lineWidth = 1.5; for (let i = 0; i <= GW; i++) { x.beginPath(); x.moveTo(i * S, 0); x.lineTo(i * S, H); x.stroke(); } for (let i = 0; i <= GH; i++) { x.beginPath(); x.moveTo(0, i * S); x.lineTo(W, i * S); x.stroke(); }
   if (m === 0) { x.fillStyle = 'rgba(255,214,64,.75)'; for (let i = 0; i < GW; i += 2) x.fillRect(i * S + 14, 5 * S + S / 2 - 3, 36, 6); x.fillStyle = 'rgba(255,255,255,.55)'; for (let i = 0; i < 6; i++) { x.fillRect(6 * S + 4 + i * 10, 1 * S - 26, 6, 52); x.fillRect(6 * S + 4 + i * 10, 10 * S - 26, 6, 52); } }
   if (m === 2) { x.strokeStyle = 'rgba(255,255,255,.8)'; x.lineWidth = 5; x.strokeRect(10, 10, W - 20, H - 20); x.beginPath(); x.moveTo(W / 2, 10); x.lineTo(W / 2, H - 10); x.stroke(); x.beginPath(); x.arc(W / 2, H / 2, 96, 0, 7); x.stroke(); }
@@ -56,6 +57,12 @@ function texCrate(base, frame, seed) {
   x.fillStyle = 'rgba(20,20,20,.7)'; for (const q of [[15, 15], [241, 15], [15, 241], [241, 241], [128, 15], [128, 241], [15, 128], [241, 128]]) { x.beginPath(); x.arc(q[0], q[1], 4, 0, 7); x.fill(); }
   speck(x, 256, 256, 900, r, 0.03, 0.09, 1, 3); return c;
 }
+function texBrick() {
+  const c = cv(256, 256), x = c.getContext('2d'), r = mulberry(88);
+  x.fillStyle = '#5a3526'; x.fillRect(0, 0, 256, 256);
+  for (let y = 0; y < 4; y++) for (let i = -1; i < 3; i++) { const px = i * 128 + (y & 1) * 64; x.fillStyle = `rgb(${190 + r() * 30},${92 + r() * 22},${60 + r() * 18})`; x.fillRect(px + 5, y * 64 + 5, 118, 54); x.fillStyle = 'rgba(255,255,255,.22)'; x.fillRect(px + 5, y * 64 + 5, 118, 8); x.fillStyle = 'rgba(0,0,0,.2)'; x.fillRect(px + 5, y * 64 + 51, 118, 8); }
+  speck(x, 256, 256, 900, r, 0.03, 0.08, 1, 3); return c;
+}
 function texBarrel(col, seed) {
   const c = cv(256, 128), x = c.getContext('2d'), r = mulberry(seed);
   x.fillStyle = col; x.fillRect(0, 0, 256, 128);
@@ -69,6 +76,7 @@ function texPillar(m) {
   if (m === 0) { x.fillStyle = '#8d9096'; x.fillRect(0, 0, 256, 256); speck(x, 256, 256, 2600, r, 0.04, 0.14, 1, 4); for (let i = -256; i < 512; i += 40) { x.fillStyle = (i / 40) & 1 ? '#f2c200' : '#1c1c1c'; x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 40, 0); x.lineTo(i + 10, 46); x.lineTo(i - 30, 46); x.fill(); } x.strokeStyle = 'rgba(0,0,0,.4)'; x.lineWidth = 2; for (let i = 0; i < 5; i++) { x.beginPath(); let px = r() * 256, py = 60 + r() * 180; x.moveTo(px, py); for (let k = 0; k < 5; k++) { px += rnd(26); py += r() * 22; x.lineTo(px, py); } x.stroke(); } }
   else if (m === 1) { x.fillStyle = '#7d7468'; x.fillRect(0, 0, 256, 256); speck(x, 256, 256, 2200, r, 0.03, 0.09, 2, 6); }
   else if (m === 2) { x.fillStyle = '#eef1f6'; x.fillRect(0, 0, 256, 256); x.fillStyle = '#1e54d6'; x.fillRect(0, 70, 256, 54); x.fillStyle = '#e53935'; x.fillRect(0, 132, 256, 16); x.strokeStyle = 'rgba(0,0,0,.18)'; x.lineWidth = 3; for (let i = 0; i <= 256; i += 64) { x.beginPath(); x.moveTo(i, 0); x.lineTo(i, 256); x.stroke(); } speck(x, 256, 256, 900, r, 0.02, 0.06, 1, 3); }
+  else if (m === 4) { x.fillStyle = '#a9afb8'; x.fillRect(0, 0, 256, 256); x.fillStyle = '#d9dee6'; x.fillRect(0, 0, 256, 26); x.fillRect(0, 0, 26, 256); x.fillStyle = '#6d737d'; x.fillRect(0, 230, 256, 26); x.fillRect(230, 0, 26, 256); x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = 4; x.strokeRect(2, 2, 252, 252); speck(x, 256, 256, 1400, r, 0.02, 0.07, 1, 3); }
   else { x.fillStyle = '#6f7682'; x.fillRect(0, 0, 256, 256); x.strokeStyle = 'rgba(0,0,0,.45)'; x.lineWidth = 4; x.strokeRect(8, 8, 240, 240); x.strokeRect(8, 8, 240, 116); x.fillStyle = '#2a2d33'; for (let i = 0; i < 6; i++) for (const y of [20, 112, 136, 236]) { x.beginPath(); x.arc(24 + i * 41.6, y, 5, 0, 7); x.fill(); } for (let i = -256; i < 512; i += 36) { x.fillStyle = (i / 36) & 1 ? '#f5c400' : '#1a1a1a'; x.beginPath(); x.moveTo(i, 150); x.lineTo(i + 36, 150); x.lineTo(i + 16, 190); x.lineTo(i - 20, 190); x.fill(); } for (let i = 0; i < 60; i++) { x.strokeStyle = `rgba(255,255,255,${r() * 0.12})`; x.beginPath(); const px = r() * 256, py = r() * 256; x.moveTo(px, py); x.lineTo(px + rnd(40), py + rnd(6)); x.stroke(); } speck(x, 256, 256, 1200, r, 0.03, 0.1, 1, 3); }
   return c;
 }
@@ -76,13 +84,14 @@ function texWall(m) {
   const c = cv(256, 128), x = c.getContext('2d'), r = mulberry(55 + m);
   if (m === 0) { x.fillStyle = '#7a3b2e'; x.fillRect(0, 0, 256, 128); for (let y = 0; y < 8; y++) for (let i = -1; i < 5; i++) { const px = i * 64 + (y & 1) * 32; x.fillStyle = `rgba(${150 + r() * 50},${70 + r() * 30},${55 + r() * 20},1)`; x.fillRect(px + 2, y * 16 + 2, 60, 12); } }
   else if (m === 1) { x.fillStyle = '#b08a55'; x.fillRect(0, 0, 256, 128); for (let i = 0; i < 8; i++) { x.fillStyle = `rgba(0,0,0,${0.05 + r() * 0.15})`; x.fillRect(i * 32, 0, 32, 128); x.fillStyle = 'rgba(0,0,0,.45)'; x.fillRect(i * 32, 0, 3, 128); } }
+  else if (m === 4) { x.fillStyle = '#7d838d'; x.fillRect(0, 0, 256, 128); for (let y = 0; y < 4; y++) for (let i = -1; i < 5; i++) { const px = i * 64 + (y & 1) * 32; x.fillStyle = `rgb(${150 + r() * 30},${156 + r() * 30},${166 + r() * 30})`; x.fillRect(px + 2, y * 32 + 2, 60, 28); } }
   else if (m === 2) { x.fillStyle = '#0b1b4d'; x.fillRect(0, 0, 256, 128); x.fillStyle = '#ffd400'; x.font = 'bold 64px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('GOL!', 128, 68); }
   else { x.fillStyle = '#4b5059'; x.fillRect(0, 0, 256, 128); for (let i = 0; i < 16; i++) { x.fillStyle = i & 1 ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.2)'; x.fillRect(i * 16, 0, 16, 128); } x.fillStyle = '#f5c400'; x.fillRect(0, 0, 256, 10); }
   speck(x, 256, 128, 700, r, 0.03, 0.1, 1, 3); return c;
 }
 function texGround(m) {
   const c = cv(256, 256), x = c.getContext('2d'), r = mulberry(91 + m);
-  x.fillStyle = ['#2a2c33', '#d9bd85', '#2d6e2b', '#2b2c30'][m]; x.fillRect(0, 0, 256, 256); speck(x, 256, 256, 2500, r, 0.02, 0.06, 1, 3); return c;
+  x.fillStyle = ['#2a2c33', '#d9bd85', '#2d6e2b', '#2b2c30', '#3c9a35'][m]; x.fillRect(0, 0, 256, 256); speck(x, 256, 256, 2500, r, 0.02, 0.06, 1, 3); return c;
 }
 
 function makeEnv(T) {
@@ -142,7 +151,7 @@ function buildProps(m) {
     for (let t = 0; t < 4; t++) { add(GEO.cube, sm, 0, 1 + t * 1.3, -9.6 - t * 1.8, 30, 2 + t * 2.6, 1.8); for (const sx of [-1, 1]) add(GEO.cube, sm, sx * (10.6 + t * 1.8), 1 + t * 1.3, -1, 22, 2 + t * 2.6, 1.8).rotation.y = Math.PI / 2; }
     const pm = new THREE.MeshStandardMaterial({ color: 0x30343c, roughness: 0.5, metalness: 0.7 });
     for (const s of [[-12, -11], [12, -11]]) { add(new THREE.CylinderGeometry(0.14, 0.2, 13, 8), pm, s[0], 6.5, s[1]); const p = add(GEO.cube, glow(0xeaf2ff, 5), s[0] * 0.97, 13.2, s[1] + 0.3, 2.6, 1.3, 0.2); p.castShadow = false; p.lookAt(0, 0, 0); }
-  } else {
+  } else if (m === 3) {
     const wm = stdMat(texWall(3), 0.55, 0.7, 2); wm.map.repeat.set(8, 3); wm.normalMap.repeat.set(8, 3);
     add(GEO.cube, wm, 0, 4, -10.5, 34, 8, 0.5); add(GEO.cube, wm, -12.5, 4, -1, 0.5, 8, 22); add(GEO.cube, wm, 12.5, 4, -1, 0.5, 8, 22);
     for (const xx of [-8, -2.6, 2.6, 8]) { const f = add(GEO.cube, glow(0xff6a1a, 3.2), xx, 2.2, -10.2, 1.8, 1.3, 0.1); f.castShadow = false; }
@@ -152,6 +161,11 @@ function buildProps(m) {
     const bm = stdMat(texBarrel('#2f6fb5', 9), 0.5, 0.5, 1.5);
     for (const s of [[-9.3, -7], [-9.9, -6.1], [9.4, -7.2], [9.6, 5.5], [-9.5, 6.5]]) add(GEO.barrel, bm, s[0], 0.42, s[1]);
   }
+  if (m === 4) {
+    const tm = new THREE.MeshStandardMaterial({ color: 0x7a5a3a, roughness: 0.9 }), lm = new THREE.MeshStandardMaterial({ color: 0x2e9a3c, roughness: 0.8 }), l2 = new THREE.MeshStandardMaterial({ color: 0x3fb54a, roughness: 0.8 });
+    for (const s of [[-10, -8], [-6.5, -8.6], [-2.5, -8.2], [2, -8.7], [6, -8.2], [10, -8.4], [-9.8, -3], [-10.2, 2.5], [10, -2.5], [10.3, 3.5], [-9.6, 7], [9.8, 7.2]]) { const h = 1.2 + r() * 0.6; add(new THREE.CylinderGeometry(0.14, 0.18, h, 8), tm, s[0], h / 2, s[1]); add(new THREE.ConeGeometry(0.95, 1.5, 9), lm, s[0], h + 0.6, s[1]); add(new THREE.ConeGeometry(0.7, 1.2, 9), l2, s[0], h + 1.4, s[1]); }
+    for (let i = 0; i < 14; i++) { const a = r() * 6.28, d = 10 + r() * 5, sc = 0.4 + r() * 0.4; add(GEO.sphLo, i & 1 ? lm : l2, Math.cos(a) * d, sc * 0.5, Math.sin(a) * d * 0.8 - 1, sc, sc * 0.8, sc); }
+  }
   return g;
 }
 
@@ -160,16 +174,16 @@ function themeCache(m) {
   geos(); const T = THEMES[m], tiles = mapTiles(m), C = { T };
   C.env = makeEnv(T);
   const fc = paintFloor(m, tiles);
-  C.floorMat = new THREE.MeshStandardMaterial({ map: ctex(fc), normalMap: normalFrom(fc, [2.2, 1.6, 1.2, 2.6][m]), roughness: [0.82, 0.95, 0.9, 0.42][m], metalness: [0.05, 0, 0, 0.75][m] });
+  C.floorMat = new THREE.MeshStandardMaterial({ map: ctex(fc), normalMap: normalFrom(fc, [2.2, 1.6, 1.2, 2.6, 1.0][m]), roughness: [0.82, 0.95, 0.9, 0.42, 0.9][m], metalness: [0.05, 0, 0, 0.75, 0][m] });
   C.floorMat.map.wrapS = C.floorMat.map.wrapT = THREE.ClampToEdgeWrapping;
-  C.pillarMat = stdMat(texPillar(m), [0.85, 0.95, 0.6, 0.4][m], [0, 0, 0, 0.8][m], 2);
+  C.pillarMat = stdMat(texPillar(m), [0.85, 0.95, 0.6, 0.4, 0.7][m], [0, 0, 0, 0.8, 0][m], 2);
   C.pillarGeo = m === 1 ? GEO.rock : GEO.box; if (m === 1) { C.pillarMat.flatShading = true; C.pillarMat.normalMap = null; }
-  C.wallMat = stdMat(texWall(m), [0.9, 0.85, 0.5, 0.5][m], [0, 0, 0.1, 0.7][m], 2);
+  C.wallMat = stdMat(texWall(m), [0.9, 0.85, 0.5, 0.5, 0.8][m], [0, 0, 0.1, 0.7, 0][m], 2);
   if (m === 2) { C.wallMat.emissiveMap = C.wallMat.map; C.wallMat.emissive = new THREE.Color(0xffffff); C.wallMat.emissiveIntensity = 0.55; }
-  const crate = [['#a8743d', '#7d5226'], ['#d2a55e', '#2a9d8f'], ['#2a5fc9', '#e9edf5'], null][m];
-  C.blockMat = crate ? stdMat(texCrate(crate[0], crate[1], 13 + m), 0.8, 0, 2.2) : stdMat(texBarrel('#b53124', 21), 0.45, 0.55, 1.6);
+  const crate = [['#a8743d', '#7d5226'], ['#d2a55e', '#2a9d8f'], ['#2a5fc9', '#e9edf5'], null, 1][m];
+  C.blockMat = m === 4 ? stdMat(texBrick(), 0.85, 0, 2.4) : crate ? stdMat(texCrate(crate[0], crate[1], 13 + m), 0.8, 0, 2.2) : stdMat(texBarrel('#b53124', 21), 0.45, 0.55, 1.6);
   C.blockGeo = crate ? GEO.crate : GEO.barrel;
-  C.debris = [0x9a6a38, 0xcaa060, 0x3565c0, 0xa33326][m];
+  C.debris = [0x9a6a38, 0xcaa060, 0x3565c0, 0xa33326, 0xb5553a][m];
   C.props = buildProps(m);
   G.TC[m] = C; return C;
 }
@@ -179,7 +193,7 @@ function buildArena() {
   if (G.arena) { G.arena.traverse(o => { if (o.isInstancedMesh) o.dispose(); }); scene.remove(G.arena); }
   for (const o of G.bombs.values()) scene.remove(o.g); G.bombs.clear();
   for (const o of G.pus.values()) scene.remove(o); G.pus.clear();
-  G.flames.clear(); G.blocks.fill(null); G.burning.length = 0; G.solids.length = 0; G.tiles.length = 0;
+  for (const o of G.flames.values()) beamFree(o); G.flames.clear(); G.blocks.fill(null); G.burning.length = 0; G.solids.length = 0; G.tiles.length = 0;
   for (const d of G.decals) { d.t = 0; d.m.visible = false; }
   P.list.length = 0;
   for (const c of G.chars) if (c) { c.alive = false; c.dead = 0; c.g.visible = false; }
@@ -262,7 +276,7 @@ function buildChar(ch, slot) {
   add(new THREE.CylinderGeometry(0.05, 0.055, 0.08, 10), skin, 0, 0.84, 0);
   const mkArm = sx => { const p = new THREE.Group(); p.position.set(sx * 0.2, 0.75, 0); rig.add(p); add(armGeo, (ch === 0 || ch === 1) ? top : skin, 0, -0.15, 0, p); if (ch >= 2) add(new THREE.CapsuleGeometry(0.058, 0.07, 4, 8), top, 0, -0.06, 0, p); add(GEO.sphLo, skin, 0, -0.31, 0, p, 0.052, 0.052, 0.052); p.rotation.z = sx * 0.1; return p; };
   const armL = mkArm(-1), armR = mkArm(1);
-  const head = new THREE.Group(); head.position.set(0, 1.0, 0); rig.add(head);
+  const head = new THREE.Group(); head.position.set(0, 1.035, 0); head.scale.setScalar(1.3); rig.add(head);
   add(GEO.sph, skin, 0, 0, 0, head, 0.16, 0.168, 0.158);
   for (const sx of [-1, 1]) { add(GEO.sphLo, white, sx * 0.058, 0.012, 0.137, head, 0.03, 0.034, 0.02).castShadow = false; add(GEO.sphLo, dark, sx * 0.058, 0.012, 0.153, head, 0.016, 0.019, 0.01).castShadow = false; add(GEO.sphLo, skin, sx * 0.158, -0.005, 0, head, 0.022, 0.035, 0.03); }
   add(GEO.sphLo, skin, 0, -0.03, 0.158, head, 0.02, 0.02, 0.02).castShadow = false;
@@ -355,15 +369,18 @@ function pUpdate(dt) {
   for (const d of G.decals) if (d.t > 0) { d.t -= dt; d.m.material.opacity = Math.min(0.75, d.t / 4); if (d.t <= 0) d.m.visible = false; }
   for (const r of G.rings) if (r.t < 1) { r.t += dt * 2.6; const s = 0.4 + r.t * 3.6; r.m.scale.set(s, s, 1); r.m.material.opacity = Math.max(0, 0.9 * (1 - r.t)); if (r.t >= 1) r.m.visible = false; }
 }
+function beamGet(inner) {
+  if (!G.beamMat) { const mk = c => new THREE.MeshBasicMaterial({ color: c, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }); G.beamMat = [mk(new THREE.Color(2.0, 0.6, 0.06)), mk(new THREE.Color(2.4, 1.8, 0.7))]; G.beamPool = [[], []]; }
+  let m = G.beamPool[inner].pop(); if (!m) { m = new THREE.Mesh(GEO.cube, G.beamMat[inner]); m.userData.t = inner; m.frustumCulled = false; scene.add(m); } m.visible = true; return m;
+}
+function beamFree(o) { if (o && o.b) for (const m of o.b) { m.visible = false; G.beamPool[m.userData.t].push(m); } }
 function fxLight(x, z, col, i) { let l = G.lights[0]; for (const q of G.lights) if (q.intensity < l.intensity) l = q; l.color.set(col); l.position.set(x, 1.3, z); l.intensity = i; }
 function fxScorch(x, z, s) { let d = G.decals[0]; for (const q of G.decals) if (q.t < d.t) d = q; d.t = 9; d.m.visible = true; d.m.position.set(x, 0.014, z); d.m.scale.set(s, s, 1); d.m.rotation.z = Math.random() * 6; }
 function fxExplosion(f) {
   const few = f.cells.length > 14;
   for (const c of f.cells) {
     const x = wx(c[0]), z = wz(c[1]);
-    pSpawn(0, x, 0.36, z, rnd(0.3), 0.5 + Math.random() * 0.5, rnd(0.3), 0.5, 0.34, 0.5, 0);
-    pSpawn(0, x + rnd(0.22), 0.3, z + rnd(0.22), rnd(0.7), 1.1 + Math.random(), rnd(0.7), 0.42, 0.2, 0.3, 0, 0.04);
-    pSpawn(0, x + rnd(0.22), 0.5, z + rnd(0.22), rnd(0.7), 1.6 + Math.random(), rnd(0.7), 0.5, 0.16, 0.08, 0, 0.1);
+    pSpawn(0, x + rnd(0.2), 0.45, z + rnd(0.2), rnd(0.6), 1.2 + Math.random(), rnd(0.6), 0.45, 0.2, 0.08, 0, 0.05);
     if (!few || Math.random() < 0.5) for (let k = 0; k < 3; k++) pSpawn(0, x, 0.4, z, rnd(4.5), 2.5 + Math.random() * 4, rnd(4.5), 0.45 + Math.random() * 0.4, 0.06, 0.012, 1);
     pSpawn(1, x + rnd(0.15), 0.5, z + rnd(0.15), rnd(0.3), 1.1 + Math.random() * 0.5, rnd(0.3), 1.2, 0.3, 0.6, 0.12 + Math.random() * 0.1, 0.25);
     if (Math.random() < 0.7) fxScorch(x, z, 1.15);
@@ -409,9 +426,9 @@ function gfxResize() {
 const _v = new THREE.Vector3();
 function fitCamera() {
   const w = G.w, h = G.h, portrait = h > w;
-  const padTop = G.inGame ? 62 : 12, padBot = G.inGame ? (portrait ? 208 : 12) : 12, padSide = (G.inGame && !portrait) ? Math.min(180, w * 0.19) : 4;
+  const padTop = G.inGame ? (portrait ? 62 : 44) : 12, padBot = G.inGame ? (portrait ? 208 : 6) : 12, padSide = (G.inGame && !portrait) ? Math.min(150, w * 0.16) : 4;
   const nx = (w - 2 * padSide) / w, ny = (h - padTop - padBot) / h, yd = (padBot - padTop) / h;
-  G.elev = portrait ? 1.15 : 1.06;
+  G.elev = portrait ? 1.15 : 1.2;
   const measure = (d, tz) => { cam.position.set(0, Math.sin(G.elev) * d, tz + Math.cos(G.elev) * d); cam.lookAt(0, 0, tz); cam.updateMatrixWorld(); let hx = 0, y0 = 9, y1 = -9; for (const X of [-7.55, 7.55]) for (const Z of [-6.6, 6.55]) for (const Y of [0, 1.0]) { _v.set(X, Y, Z).project(cam); hx = Math.max(hx, Math.abs(_v.x)); y0 = Math.min(y0, _v.y); y1 = Math.max(y1, _v.y); } return { hx, y0, y1 }; };
   let tz = 0, d = 22;
   for (let it = 0; it < 4; it++) {
@@ -424,7 +441,7 @@ function camUpdate(dt) {
   let tx = G.camT.x, tz = G.camT.z, d = G.camD, az = 0;
   if (Game.mode === 'attract') { az = Math.sin(G.time * 0.13) * 0.3; d *= 0.92; }
   // em telas pequenas a câmera aproxima e acompanha o jogador
-  const mi = myIdx(), follow = G.inGame && Math.min(G.w, G.h) < 620 && mi >= 0 && V.slots[mi].al && V.ph !== 'rend';
+  const mi = myIdx(), follow = G.inGame && (Game.cam === 2 || (Game.cam === 0 && G.h > G.w && Math.min(G.w, G.h) < 620)) && mi >= 0 && V.slots[mi].al && V.ph !== 'rend';
   const Z = follow ? 0.72 : 1; G.fz += (Z - G.fz) * Math.min(1, dt * 4);
   if (G.fz < 0.999) { const p = rpos(mi >= 0 ? mi : 0), k = 1 - G.fz; G.fx0 += (wx(p.x) / 6 * 7.55 * k - G.fx0) * Math.min(1, dt * 6); G.fy0 += (wz(p.y) / 5 * 6.6 * k - G.fy0) * Math.min(1, dt * 6); tx += G.fx0; tz = tz * G.fz + G.fy0; d *= G.fz; }
   const zt = (V.ph === 'rend' && V.ld && Game.mode !== 'attract' && UI.phT < 2.4) ? 1 : 0; G.zoom += (zt - G.zoom) * Math.min(1, dt * 3);
@@ -475,8 +492,17 @@ function gfxSync(dt) {
   for (const [id, o] of G.bombs) if (!seen.has(id)) { scene.remove(o.g); G.bombs.delete(id); }
   // chamas
   seen.clear();
-  for (const f of V.flames) { seen.add(f.id); if (!G.flames.has(f.id)) { G.flames.set(f.id, 1); if (f.ttl > 0.3) { fxExplosion(f); onBoom(f); } } }
-  for (const id of G.flames.keys()) if (!seen.has(id)) G.flames.delete(id);
+  for (const f of V.flames) {
+    seen.add(f.id); let o = G.flames.get(f.id);
+    if (!o) {
+      o = { b: [], r: null }; G.flames.set(f.id, o); if (f.ttl > 0.3) { fxExplosion(f); onBoom(f); }
+      let x0 = f.x, x1 = f.x, y0 = f.y, y1 = f.y; for (const c of f.cells) { if (c[1] === f.y) { x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]); } if (c[0] === f.x) { y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); } }
+      o.r = [x0, x1, y0, y1]; for (let i = 0; i < 4; i++) o.b.push(beamGet(i & 1));
+    }
+    const k = clamp(f.ttl / 0.6, 0, 1), th = (k > 0.86 ? (1 - k) / 0.14 : Math.pow(k / 0.86, 0.55)) * (0.92 + 0.08 * Math.sin(t * 45)), r = o.r;
+    for (let i = 0; i < 4; i++) { const m = o.b[i], w = (i & 1 ? 0.34 : 0.64) * th; if (i < 2) { m.position.set(wx((r[0] + r[1]) / 2), 0.38, wz(f.y)); m.scale.set(r[1] - r[0] + 0.86, w * 0.8, w); } else { m.position.set(wx(f.x), 0.38, wz((r[2] + r[3]) / 2)); m.scale.set(w, w * 0.8, r[3] - r[2] + 0.86); } }
+  }
+  for (const [id, o] of G.flames) if (!seen.has(id)) { beamFree(o); G.flames.delete(id); }
   // power-ups
   seen.clear();
   for (const p of V.pus) {

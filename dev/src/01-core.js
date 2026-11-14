@@ -11,7 +11,7 @@ const DX = [0, -1, 0, 1], DY = [1, 0, -1, 0]; // 0 baixo, 1 esquerda, 2 cima, 3 
 const idx = (x, y) => y * GW + x;
 const inb = (x, y) => x >= 0 && y >= 0 && x < GW && y < GH;
 const SPAWNS = [[0, 0], [12, 10], [12, 0], [0, 10]];
-const ROUND_T = 120, SHRINK_AT = 45, WINS = 2, FUSE = 2.5;
+const ROUND_T = 120, SHRINK_AT = 60, WINS = 2, FUSE = 2.5;
 
 const CHARS = [
   { name: 'Kaio', tag: 'Bomba remota', desc: 'Planta uma bomba extra e detona na hora que quiser.', btn: 'REMOTA', col: '#ff7a1a', cd: 4 },
@@ -20,7 +20,7 @@ const CHARS = [
   { name: 'Dudu', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5 },
 ];
 const SLOTCOL = ['#ff4d4d', '#3db8ff', '#ffd23d', '#5dea8c'];
-const MAPS = ['Cidade', 'Praia', 'Estádio', 'Fábrica'];
+const MAPS = ['Cidade', 'Praia', 'Estádio', 'Fábrica', 'Clássico'];
 const PU_NAMES = ['+1 bomba', '+1 fogo', 'Velocidade', 'Escudo', 'Chute', 'Fogo perfurante'];
 const DIFFS = ['Fácil', 'Normal', 'Difícil'];
 const EMOTES = ['👍', '😂', '😱', '💣'];
@@ -120,6 +120,10 @@ function updateMover(p, ix, iy, dt) {
       let dist = sp * dt; if (p.lim > 0) dist = Math.min(dist, p.lim);
       const r = stepMove(p, d1, dist, false); p.d = d1; moved = r.moved; res.hit = r.hit;
       if (moved < 1e-4 && d2 >= 0) { const r2 = stepMove(p, d2, dist, false); if (r2.moved > 1e-4) { moved = r2.moved; p.d = d2; res.hit = null; } }
+      // curva antecipada: se a direção pedida ainda está bloqueada, segue na anterior até a abertura
+      if (moved < 1e-4 && !r.hit && !(p.lim > 0) && p.pd >= 0 && p.pd !== d1 && ((p.pd ^ d1) & 1) && p.pdT > 0) { const r3 = stepMove(p, p.pd, dist, false); if (r3.moved > 1e-4) { moved = r3.moved; p.d = p.pd; } }
+      else if (moved > 1e-4) { p.pd = p.d; p.pdT = 0.45; }
+      if (p.pdT > 0) p.pdT -= dt;
     }
     p.m = moved > 1e-4 ? 1 : 0;
   }
@@ -127,7 +131,7 @@ function updateMover(p, ix, iy, dt) {
   if (cd >= 0) stepMove(p, cd, 1.5 * dt, false);
   const c2 = cellOf(p), to = V.tiles.teleTo[c2];
   if (to >= 0) {
-    if (!p.tl) { const cx = c2 % GW, cy = (c2 / GW) | 0; if (Math.abs(p.x - cx) < 0.2 && Math.abs(p.y - cy) < 0.2) { p.x = to % GW; p.y = (to / GW) | 0; p.tl = 1; res.tele = 1; } }
+    if (!p.tl && V.grid[to] === EMPTY) { const cx = c2 % GW, cy = (c2 / GW) | 0; if (Math.abs(p.x - cx) < 0.2 && Math.abs(p.y - cy) < 0.2) { p.x = to % GW; p.y = (to / GW) | 0; p.tl = 1; res.tele = 1; } }
   } else p.tl = 0;
   return res;
 }

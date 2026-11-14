@@ -6,6 +6,7 @@ function rollPU() { const r = Math.random() * 100; return r < 28 ? 0 : r < 56 ? 
 function genGrid() {
   const g = V.grid, keep = new Uint8Array(N);
   for (const s of SPAWNS) for (const d of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) { const x = s[0] + d[0], y = s[1] + d[1]; if (inb(x, y)) keep[idx(x, y)] = 1; }
+  for (const t of V.tiles.tele) for (const k of [0, 2]) for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (Math.abs(x - t[k]) + Math.abs(y - t[k + 1]) <= 2) keep[idx(x, y)] = 1;
   for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
     const c = idx(x, y);
     if ((x & 1) && (y & 1)) g[c] = PILLAR;
@@ -16,7 +17,7 @@ function genGrid() {
 
 function simSetupMatch(mapChoice, diff) {
   Sim.mapChoice = mapChoice; V.diff = diff;
-  Sim.order = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
+  Sim.order = [4].concat([0, 1, 2, 3].sort(() => Math.random() - 0.5));
   V.rnd = 0; V.mwin = -1;
   for (const s of V.slots) { s.w = 0; s.e = [0, 0]; }
   simStartRound();
@@ -24,7 +25,7 @@ function simSetupMatch(mapChoice, diff) {
 
 function simStartRound() {
   V.rnd++; V.epoch++;
-  V.map = Sim.mapChoice >= 0 ? Sim.mapChoice : Sim.order[(V.rnd - 1) % 4];
+  V.map = Sim.mapChoice >= 0 ? Sim.mapChoice : Sim.order[(V.rnd - 1) % 5];
   V.tiles = mapTiles(V.map);
   genGrid();
   V.bombs.length = 0; V.flames.length = 0; V.pus.length = 0; Sim.burn.clear(); Sim.flameGrid.fill(0);
@@ -45,7 +46,7 @@ function blastCells(cx, cy, range, pierce, apply) {
     const c = idx(x, y), g = V.grid[c];
     if (g === PILLAR || g === SOLID) break;
     if (g === BLOCK || g === BURN) {
-      if (apply && g === BLOCK) { V.grid[c] = BURN; Sim.burn.set(c, { t: 0.5, pu: Math.random() < 0.36 ? rollPU() : -1 }); }
+      if (apply && g === BLOCK) { V.grid[c] = BURN; Sim.burn.set(c, { t: 0.62, pu: Math.random() < 0.36 ? rollPU() : -1 }); }
       out.push([x, y]); if (!pierce) break; else continue;
     }
     out.push([x, y]);
@@ -59,6 +60,7 @@ function blastCells(cx, cy, range, pierce, apply) {
 
 function explode(b) {
   const i = V.bombs.indexOf(b); if (i >= 0) V.bombs.splice(i, 1);
+  if (b.type === 1 && V.slots[b.o]) V.slots[b.o]._cdT = Math.max(V.slots[b.o]._cdT, Sim.time + CHARS[0].cd);
   const cx = clamp(Math.round(b.x), 0, GW - 1), cy = clamp(Math.round(b.y), 0, GH - 1);
   const cells = blastCells(cx, cy, b.range, b.pierce, true);
   V.flames.push({ id: Sim.nextId++, x: cx, y: cy, cells, ttl: 0.6 });
@@ -86,12 +88,13 @@ function tickBombs(dt) {
     if (!V.bombs.includes(b)) continue;
     if (b.fly) {
       b.fly.p += dt / 0.55;
-      if (b.fly.p >= 1) { b.fly = null; if (V.grid[idx(b.x, b.y)] !== EMPTY || Sim.flameGrid[idx(b.x, b.y)]) b.fuse = 0; }
+      if (b.fly.p >= 1) { b.fly = null; if (V.grid[idx(b.x, b.y)] !== EMPTY || Sim.flameGrid[idx(b.x, b.y)] || bombAtCell(b.x, b.y, b)) b.fuse = 0; }
       else continue;
     }
     if (b.sl >= 0) { if (!slideBomb(b, b.sl, b.slSpd, dt)) b.sl = -1; }
     else { const cd = V.tiles.convAt[idx(clamp(Math.round(b.x), 0, GW - 1), clamp(Math.round(b.y), 0, GH - 1))]; if (cd >= 0) slideBomb(b, cd, 1.5, dt); }
     b.fuse -= dt;
+    if (b.fuse > 0.08 && Sim.flameGrid[idx(clamp(Math.round(b.x), 0, GW - 1), clamp(Math.round(b.y), 0, GH - 1))]) b.fuse = 0.08;
     if (b.fuse <= 0) explode(b);
   }
 }
@@ -111,7 +114,7 @@ function kickBomb(b, dir) { if (!b || b.fly) return false; b.sl = dir; b.slSpd =
 
 function findLanding(cx, cy, dir) {
   const ok = k => { const x = cx + DX[dir] * k, y = cy + DY[dir] * k; return inb(x, y) && V.grid[idx(x, y)] === EMPTY && !bombAtCell(x, y) ? [x, y] : null; };
-  for (let k = 3; k <= 12; k++) { const r = ok(k); if (r) return r; if (!inb(cx + DX[dir] * k, cy + DY[dir] * k)) break; }
+  for (let k = 3; k <= 5; k++) { const r = ok(k); if (r) return r; if (!inb(cx + DX[dir] * k, cy + DY[dir] * k)) break; }
   for (let k = 2; k >= 1; k--) { const r = ok(k); if (r) return r; }
   return null;
 }
@@ -213,7 +216,11 @@ function dangerMap(extra, me) {
   for (const b of V.bombs) {
     const x = clamp(Math.round(b.x), 0, GW - 1), y = clamp(Math.round(b.y), 0, GH - 1);
     if (!b.fly) BG[idx(x, y)] = 1;
-    L.push({ x, y, f: b.type === 1 ? (b.o === me ? 1.5 : 1.0) : b.fuse + (b.fly ? (1 - b.fly.p) * 0.55 : 0), r: b.range, p: b.pierce });
+    if (!b.fly && b.sl < 0 && V.tiles.convAt[idx(x, y)] >= 0) {
+      let px = x, py = y, n = Math.round(Math.min(b.fuse, 3) * 1.5);
+      while (n-- > 0) { const d = V.tiles.convAt[idx(px, py)]; if (d < 0) break; const nx = px + DX[d], ny = py + DY[d]; if (solidCell(nx, ny) || bombAtCell(nx, ny, b)) break; px = nx; py = ny; L.push({ x: px, y: py, f: b.fuse, r: b.range, p: b.pierce }); }
+    }
+    L.push({ x, y, f: b.type === 1 ? Math.min(b.fuse, b.o === me ? 1.5 : 1.0) : b.fuse + (b.fly ? (1 - b.fly.p) * 0.55 : 0), r: b.range, p: b.pierce });
   }
   if (extra) L.push(extra);
   const cs = L.map(b => blastCells(b.x, b.y, b.r, b.p, false));
@@ -221,12 +228,13 @@ function dangerMap(extra, me) {
     if (i !== j && L[j].f > L[i].f + 0.05 && cs[i].some(q => q[0] === L[j].x && q[1] === L[j].y)) L[j].f = L[i].f + 0.05;
   for (let i = 0; i < L.length; i++) for (const q of cs[i]) { const c = idx(q[0], q[1]); if (L[i].f < D[c]) D[c] = L[i].f; }
   for (let c = 0; c < N; c++) if (Sim.flameGrid[c]) D[c] = 0;
-  for (const s of V.tiles.spk) { const c = idx(s[0], s[1]), e = spikeEta(s[0], s[1], V.el); if (e < 1.3) D[c] = Math.min(D[c], e); }
+  for (const s of V.tiles.spk) { const c = idx(s[0], s[1]), ph = spikePhase(s[0], s[1], V.el), e = ph < 3.5 ? 3.5 - ph : 0; if (e < 1.6) D[c] = Math.min(D[c], e); }
   if (V.t <= SHRINK_AT + 3) { let k = 0, t = Math.max(0, V.t - SHRINK_AT) + Math.max(0, Sim.shT); for (let j = V.sh; j < N && k < 6; j++) { const c = SPIRAL[j]; if (V.grid[c] === PILLAR) continue; D[c] = Math.min(D[c], t + 0.36 * k); k++; } }
   return D;
 }
 
-function bfs(sx, sy, D, sp) {
+function bfs(sx, sy, D, sp, mg) {
+  if (mg === undefined) mg = 0.4;
   const dist = new Int16Array(N).fill(-1), prev = new Int16Array(N).fill(-1), q = [idx(sx, sy)]; dist[q[0]] = 0;
   for (let h = 0; h < q.length; h++) {
     const c = q[h], x = c % GW, y = (c / GW) | 0;
@@ -234,7 +242,7 @@ function bfs(sx, sy, D, sp) {
       const nx = x + DX[d], ny = y + DY[d]; if (!inb(nx, ny)) continue; const n = idx(nx, ny);
       if (dist[n] >= 0 || V.grid[n] !== EMPTY || Sim.BG[n]) continue;
       const arr = (dist[c] + 1) / sp;
-      if (D[n] !== Infinity && D[n] <= arr + 0.4) continue;
+      if (D[n] !== Infinity && D[n] <= arr + mg) continue;
       dist[n] = dist[c] + 1; prev[n] = c; q.push(n);
     }
   }
@@ -255,17 +263,26 @@ function botTryBomb(s, remote) {
 
 function botPlan(s) {
   const b = s.bot, me = s.i, cx = Math.round(s.x), cy = Math.round(s.y), c0 = idx(cx, cy), sp = speedOf(s);
-  const D = dangerMap(null, me), R = bfs(cx, cy, D, sp);
+  let D, R;
   const enemies = V.slots.filter(o => o.al && o.i !== me);
   const hitsEnemy = cells => { for (const q of cells) for (const e of enemies) if (Math.round(e.x) === q[0] && Math.round(e.y) === q[1]) return true; return false; };
   const skill = V.diff > 0 || Math.random() < 0.3;
   // habilidades
   if (s.ch === 0) {
     const rb = V.bombs.find(q => q.o === me && q.type === 1);
-    if (rb && !rb.fly) { const cells = blastCells(Math.round(rb.x), Math.round(rb.y), rb.range, rb.pierce, false); if (!cells.some(q => q[0] === cx && q[1] === cy) && (hitsEnemy(cells) || rb.fuse < 5.4)) reqAbility(me, 'a', cx, cy, s.d); }
+    if (rb && !rb.fly) {
+      const cells = blastCells(Math.round(rb.x), Math.round(rb.y), rb.range, rb.pierce, false);
+      if (hitsEnemy(cells) || rb.fuse < 5.4) {
+        const f0 = rb.fuse; rb.fuse = 0; const Dx = dangerMap(null, me); rb.fuse = f0;
+        const ok = (x, y) => Dx[idx(x, y)] > 0.7;
+        if (ok(Math.floor(s.x), Math.floor(s.y)) && ok(Math.ceil(s.x), Math.ceil(s.y)) && b.path.slice(0, 3).every(t => ok(t[0], t[1]))) reqAbility(me, 'a', cx, cy, s.d);
+      }
+    }
   }
+  D = dangerMap(null, me); R = bfs(cx, cy, D, sp);
   if (D[c0] < Infinity) {
     let best = nearestSafe(R, D);
+    if (best < 0) { R = bfs(cx, cy, D, sp, 0.5 / sp + 0.03); best = nearestSafe(R, D); }
     if (best < 0) {
       let bt = -1; for (let c = 0; c < N; c++) if (R.dist[c] >= 0 && D[c] > bt) { bt = D[c]; best = c; }
       if (s.ch === 2 && s.cd <= 0 && D[c0] < 0.7 && skill) { for (let d = 0; d < 4; d++) { const x = cx + DX[d], y = cy + DY[d]; if (!solidCell(x, y)) { if (reqAbility(me, 'a', cx, cy, d)) { s.dashT = 0.2; s.dashDir = d; } break; } } }
@@ -278,7 +295,15 @@ function botPlan(s) {
   }
   const canBomb = ownBombs(me) < s.maxB && !Sim.BG[c0];
   const remoteOK = s.ch === 0 && s.cd <= 0 && !V.bombs.some(q => q.o === me && q.type === 1) && !Sim.BG[c0];
-  const eW = V.diff === 0 ? 8 : V.diff === 1 ? 34 : 60, cand = [];
+  if (canBomb && V.diff > 0 && (V.diff === 2 || Math.random() < 0.5)) for (const e of enemies) {
+    const ex = Math.round(e.x), ey = Math.round(e.y), ec = idx(ex, ey);
+    if (Math.abs(ex - cx) + Math.abs(ey - cy) > s.range + 2) continue;
+    const D2 = dangerMap({ x: cx, y: cy, f: FUSE, r: s.range, p: s.pierce }, me);
+    Sim.BG[c0] = 1; const Re = bfs(ex, ey, D2, speedOf(e), 0.5 / speedOf(e)); Sim.BG[c0] = 0;
+    if ((D2[ec] < Infinity || ec === c0) && nearestSafe(Re, D2) < 0 && botTryBomb(s, false)) return;
+  }
+  const sd = V.t <= SHRINK_AT ? 1.4 : 1, eW = [18, 40, 70][V.diff] * sd, cand = [];
+  const nearEnemy = cells => { for (const e of enemies) for (const q of cells) if (Math.abs(q[0] - e.x) + Math.abs(q[1] - e.y) < 1.5) return true; return false; };
   for (let c = 0; c < N; c++) {
     if (R.dist[c] < 0 || D[c] < Infinity) continue; const d = R.dist[c]; if (d > 14) continue;
     const x = c % GW, y = (c / GW) | 0; let v = -d * 2 + Math.random() * 2.5 + (c === b.goal ? 4 : 0), bvx = 0;
@@ -286,9 +311,9 @@ function botPlan(s) {
     if (canBomb || remoteOK) {
       const cells = blastCells(x, y, s.range, s.pierce, false); let nb = 0;
       for (const q of cells) if (V.grid[idx(q[0], q[1])] === BLOCK) nb++;
-      bvx = nb * 11 + (hitsEnemy(cells) ? eW : 0);
+      bvx = nb * 11 + (hitsEnemy(cells) ? eW : V.diff > 0 && nearEnemy(cells) ? eW * 0.4 : 0);
     }
-    if (V.diff > 0 && enemies.length) { let md = 99; for (const e of enemies) md = Math.min(md, Math.abs(e.x - x) + Math.abs(e.y - y)); v -= md * (V.diff === 2 ? 1.1 : 0.5); }
+    if (enemies.length) { let md = 99; for (const e of enemies) md = Math.min(md, Math.abs(e.x - x) + Math.abs(e.y - y)); v -= md * [2.1, 2.5, 3.0][V.diff] * sd; }
     cand.push({ c, v: v + bvx, bvx });
   }
   let best = c0, bBomb = false;
@@ -322,5 +347,6 @@ function botUpdate(s, dt) {
     s.lim = Math.abs(dx) + Math.abs(dy); break;
   }
   const r = updateMover(s, ix, iy, dt); s.lim = 0;
+  if (r.tele) { b.path = []; b.t = 0; }
   if (r.hit && (s.kick || s.ch === 3)) kickBomb(r.hit, s.d);
 }

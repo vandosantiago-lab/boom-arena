@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Boom Arena">
+<meta name="theme-color" content="#0a0d18">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <title>Boom Arena 3D</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap">
 <style>
@@ -66,7 +73,7 @@ input:focus{border-color:#ffb300}
 #b-set svg{width:20px;height:20px}
 #stats{position:absolute;left:8px;top:58px;display:flex;gap:5px;flex-wrap:wrap;max-width:60%}
 #stats span{display:flex;align-items:center;gap:3px;background:rgba(14,17,30,.72);border-radius:999px;padding:3px 8px 3px 4px;font-weight:800;font-size:13px}#stats img{width:18px;height:18px}
-#joyzone{position:absolute;left:0;bottom:0;width:56%;height:min(64%,340px)}
+#joyzone{position:absolute;left:0;top:60px;bottom:0;width:58%;touch-action:none;-webkit-touch-callout:none}
 #joy{position:fixed;left:84px;bottom:92px;width:112px;height:112px;margin:0;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.3);transform:translate(-50%,50%);opacity:.5;pointer-events:none}
 #joy.on{bottom:auto;transform:translate(-50%,-50%);opacity:.95}
 #joyk{position:absolute;left:50%;top:50%;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.85);transform:translate(-50%,-50%);box-shadow:0 4px 12px rgba(0,0,0,.4)}
@@ -92,7 +99,7 @@ input:focus{border-color:#ffb300}
 #loaderr{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:#0a0d18;z-index:99}
 @media (orientation:landscape) and (max-height:520px){
  .logo{font-size:30px;margin-bottom:8px}.panel{padding:12px 14px}#chdesc{min-height:0;margin:6px 2px 8px}
- #joyzone{width:36%;height:78%}#btns{transform:scale(.9);transform-origin:100% 100%}
+ #joyzone{width:46%}#btns{transform:scale(.9);transform-origin:100% 100%}
  .ch img{aspect-ratio:9/6}
 }
 @media (prefers-reduced-motion:reduce){#banner.pop b,#bt-ab.arm{animation:none}}
@@ -134,6 +141,7 @@ input:focus{border-color:#ffb300}
     <div class="row"><button id="b-create" class="btn" disabled>Criar sala</button><button id="b-join" class="btn" disabled>Entrar em sala</button></div>
     <div id="joinbox" class="hide"><input id="code" maxlength="4" placeholder="CÓDIGO" autocomplete="off" autocapitalize="characters"><button id="b-go" class="btn pri">Entrar</button></div>
     <div id="netmsg" class="hint">Conectando ao multiplayer…</div>
+    <div class="row"><button id="b-full" class="btn">Tela cheia</button></div>
     <button id="b-how" class="link">Como jogar</button>
   </div>
 </div>
@@ -168,7 +176,7 @@ input:focus{border-color:#ffb300}
   <p><b>Controles:</b> arraste o lado esquerdo da tela para andar. Botão vermelho solta a bomba; o botão colorido usa o poder do seu personagem. No computador: setas ou WASD, Espaço e E.</p>
   <p><b>Itens</b> aparecem ao destruir blocos:</p>
   <div id="how-list"></div>
-  <p><b>Mapas:</b> na Cidade há bueiros que teleportam; na Praia, areia fofa que deixa lento; no Estádio, espinhos que sobem do chão; na Fábrica, esteiras e espinhos. Nos últimos 45 segundos a arena começa a fechar.</p>
+  <p><b>Mapas:</b> na Cidade há bueiros que teleportam; na Praia, areia fofa que deixa lento; no Estádio, espinhos que sobem do chão; na Fábrica, esteiras e espinhos; o Clássico é o campo verde tradicional, sem armadilhas. Nos últimos 45 segundos a arena começa a fechar.</p>
   <button id="b-howx" class="btn pri">Entendi</button>
 </div></div>
 
