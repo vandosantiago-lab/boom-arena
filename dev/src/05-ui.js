@@ -279,8 +279,12 @@ function frame(now) {
     const pf = G.prof; pf[0] += t1 - t0; pf[1] += t2 - t1; pf[2] += performance.now() - t2; pf[3]++;
   } catch (e) { if (!window.__boomErr) { window.__boomErr = String(e && e.stack || e); console.error(e); } }
 }
+const BUILD = '/*__BUILD__*/';
+// versão web: confere se há versão mais nova publicada (apps salvos na tela inicial guardam cópia antiga)
+if (HOSTED) { try { fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(v => { v = (v || '').trim(); if (v && v !== BUILD && !location.search.includes('v=' + v)) location.replace(location.pathname + '?v=' + v + location.hash); }).catch(() => { }); } catch (e) { } }
 try {
   gfxInit(); UI.init(); startAttract(); netInit();
+  { const el = $('ver'); if (el) el.textContent = 'versão ' + BUILD; }
   $('c').addEventListener('webglcontextlost', e => { e.preventDefault(); try { localStorage.setItem('boom.q', '0'); } catch (x) { } $('loaderr').classList.remove('hide'); $('loaderr').firstElementChild.innerHTML = '<h2>O vídeo do aparelho foi reiniciado</h2><p>Abra a página de novo para continuar. Os gráficos voltarão no modo leve.</p>'; });
   window.__boomReady = true; window.__boom = { V, G, Game, Net, Sim, In, UI };
   requestAnimationFrame(frame);
