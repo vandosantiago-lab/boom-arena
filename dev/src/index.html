@@ -68,7 +68,7 @@ input:focus{border-color:#ffb300}
 #hud button,#joyzone,#emos{pointer-events:auto}
 #top{position:absolute;left:0;right:0;top:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:linear-gradient(rgba(6,8,18,.75),rgba(6,8,18,0))}
 #chips{display:flex;gap:5px}
-.pchip{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:9px;line-height:1;color:#ffd23d}.pchip.dead .av{filter:grayscale(1) brightness(.5)}.pchip.me .av{box-shadow:0 0 0 2px #fff}
+.pchip{display:flex;flex-direction:column;align-items:center;gap:1px;font-size:9px;line-height:1;color:#ffd23d;font-weight:800}.pchip.dead .av{filter:grayscale(1) brightness(.5)}.pchip.me .av{box-shadow:0 0 0 2px #fff}
 #clock{position:absolute;left:50%;top:5px;transform:translateX(-50%);text-align:center;pointer-events:none}
 #tm{display:block;font-family:"Russo One",system-ui,sans-serif;font-size:24px;line-height:1.05;text-shadow:0 2px 6px #000}#rd{font-size:11px;color:#c9d0e0;text-shadow:0 1px 4px #000;white-space:nowrap}
 #clock.hot #tm{color:#ff5a4d}#clock.hot #rd{color:#ffb0a8;font-weight:700}
@@ -176,7 +176,7 @@ input:focus{border-color:#ffb300}
 
 <div id="how" class="modal hide"><div class="panel">
   <h3>Como jogar</h3>
-  <p>Solte bombas para abrir caminho pelos blocos e eliminar os adversários. O último em pé vence a rodada; quem vencer 2 rodadas leva a partida.</p>
+  <p>Solte bombas para abrir caminho pelos blocos e eliminar os adversários. O último em pé vence a rodada; quem vencer o número de rodadas combinado na sala leva a partida.</p>
   <p><b>Controles:</b> arraste o lado esquerdo da tela para andar. Botão vermelho solta a bomba; o botão colorido usa o poder do seu personagem. No computador: setas ou WASD, Espaço e E.</p>
   <p><b>Itens</b> aparecem ao destruir blocos:</p>
   <div id="how-list"></div>

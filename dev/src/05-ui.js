@@ -1,5 +1,5 @@
 // ===================== JOGO, ENTRADA E INTERFACE =====================
-const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4 }, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
+const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4, time: 120, wins: 2 }, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
 const In = { x: 0, y: 0, bomb: false, abil: false, keys: {}, jid: null, jon: false, ox: 0, oy: 0, jx: 0, jy: 0 };
 const UI = { ph: '', ep: -1, phT: 0, c: -1, labs: [], sig: {}, bannerT: 0, toastT: 0, cdWas: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -66,7 +66,7 @@ async function joinRoom(code) {
 function startMatch() {
   if (V.slots.filter(s => s.k !== '-').length < 2) return toast('É preciso pelo menos 2 participantes.');
   for (const s of V.slots) { s._ack = -1; s._gone = 0; }
-  simSetupMatch(Game.opt.map, Math.max(0, Game.opt.bots - 1));
+  simSetupMatch(Game.opt.map, Math.max(0, Game.opt.bots - 1), Game.opt.time, Game.opt.wins);
 }
 function lobbyBuild() {
   const hs = [{ peer: Net.myPeer || 'H', nm: Game.name, ch: Game.ch, jt: -1 }];
@@ -179,14 +179,17 @@ UI.renderSettings = function () {
   }
 };
 UI.renderLobby = function () {
-  const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots, Game.opt.size] : (Net.opt || [-1, 0, 4]), size = clamp(opt[2] | 0 || 4, 2, 4);
+  const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, Game.opt.wins] : (Net.opt || [-1, 0, 4, 120, 2]), size = clamp(opt[2] | 0 || 4, 2, 4);
   const sig = JSON.stringify([Game.mode, Net.code, mi, opt, Game.ch, V.slots.map(s => [s.k, s.nm, s.ch, s.peer])]); if (sig === UI.sig.lobby) return; UI.sig.lobby = sig;
   $('lb-head').innerHTML = online ? `<div class="code"><small>CÓDIGO DA SALA</small><b>${esc(Net.code)}</b><button class="link" id="b-copy">Copiar código</button></div><canvas id="qr" width="132" height="132" class="hide"></canvas>` : `<div class="code"><small>MODO</small><b class="solo">Solo</b></div>`;
   $('lb-hint').textContent = online ? (HOSTED ? 'Os outros apontam a câmera do celular para o QR, ou abrem este mesmo link, tocam em "Entrar em sala" e digitam o código.' : 'Os outros jogadores abrem este mesmo jogo, tocam em "Entrar em sala" e digitam o código.') : 'Você contra três bots. Escolha o mapa e a dificuldade.';
   $('lb-slots').innerHTML = V.slots.slice(0, size).map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${SLOTCOL[i]}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${SLOTCOL[i]}"></span>${avatar(s.ch, SLOTCOL[i])}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i></div>${i === mi ? '<u>Você</u>' : s.k === 'b' ? '<u>Bot</u>' : i === 0 ? '<u>Anfitrião</u>' : ''}</div>`).join('');
   const chips = (key, names, cur, first) => names.map((n, i) => `<button class="chip${i + first === cur ? ' sel' : ''}" data-k="${key}" data-v="${i + first}" ${host ? '' : 'disabled'}>${n}</button>`).join('');
+  const vchips = (key, list, cur) => list.map(q => `<button class="chip${q[0] === cur ? ' sel' : ''}" data-k="${key}" data-v="${q[0]}" ${host ? '' : 'disabled'}>${q[1]}</button>`).join('');
   $('lb-opts').innerHTML = `<div class="srow"><span>Seu personagem · ${CHARS[Game.ch].name} · ${CHARS[Game.ch].tag}</span><div class="chips avs">${CHARS.map((c, i) => `<button class="chip av-chip${i === Game.ch ? ' sel' : ''}" data-k="ch" data-v="${i}">${avatar(i, i === Game.ch ? '#fff' : 'transparent', 'sm')}</button>`).join('')}</div></div>
    <div class="srow"><span>Jogadores</span><div class="chips seg">${chips('size', ['2', '3', '4'], size, 2)}</div></div>
+   <div class="srow"><span>Tempo de cada rodada</span><div class="chips seg">${vchips('time', [[120, '2 min'], [180, '3 min'], [300, '5 min'], [480, '8 min']], opt[3] || 120)}</div></div>
+   <div class="srow"><span>Rodadas · vence quem ganhar</span><div class="chips seg">${vchips('wins', [[1, '1'], [2, '2'], [3, '3'], [5, '5']], opt[4] || 2)}</div></div>
    <div class="srow"><span>Mapa</span><div class="chips">${chips('map', ['Sorteio', ...MAPS], opt[0], -1)}</div></div>
    <div class="srow"><span>Bots</span><div class="chips seg">${chips('bots', online ? ['Sem bots', ...DIFFS] : DIFFS, opt[1], online ? 0 : 1)}</div></div>`;
   const n = V.slots.filter(s => s.k !== '-').length;
@@ -233,8 +236,8 @@ UI.tick = function (dt) {
   const mi = myIdx(), s = mi >= 0 ? V.slots[mi] : null;
   const tt = Math.ceil(V.t), ts = Math.floor(tt / 60) + ':' + String(tt % 60).padStart(2, '0');
   if (ts !== UI.sig.tm) { UI.sig.tm = ts; $('tm').textContent = ts; $('clock').classList.toggle('hot', V.t <= SHRINK_AT); $('rd').textContent = V.t <= SHRINK_AT ? 'A arena está fechando!' : 'Rodada ' + V.rnd; }
-  const cs = JSON.stringify(V.slots.map(q => [q.k, q.ch, q.w, q.al, q.nm]));
-  if (cs !== UI.sig.chips) { UI.sig.chips = cs; $('chips').innerHTML = V.slots.map((q, i) => q.k === '-' ? '' : `<div class="pchip${q.al ? '' : ' dead'}${i === mi ? ' me' : ''}">${avatar(q.ch, SLOTCOL[i], 'sm')}<span>${'●'.repeat(q.w)}${'○'.repeat(Math.max(0, WINS - q.w))}</span></div>`).join(''); }
+  const cs = V.wn + JSON.stringify(V.slots.map(q => [q.k, q.ch, q.w, q.al, q.nm]));
+  if (cs !== UI.sig.chips) { UI.sig.chips = cs; $('chips').innerHTML = V.slots.map((q, i) => q.k === '-' ? '' : `<div class="pchip${q.al ? '' : ' dead'}${i === mi ? ' me' : ''}">${avatar(q.ch, SLOTCOL[i], 'sm')}<span>${V.wn > 3 ? q.w + '/' + V.wn : '●'.repeat(q.w) + '○'.repeat(Math.max(0, V.wn - q.w))}</span></div>`).join(''); }
   const spec = !s || !s.al;
   if (spec !== UI.specWas) { UI.specWas = spec; fitCamera(); }
   show('controls', !spec); show('spec', spec && V.ph === 'play'); if (spec) { if (In.jon) UI.jend(); $('spec').textContent = s ? 'Você foi eliminado — assistindo ao resto da rodada' : 'Assistindo — você entra na próxima partida'; }

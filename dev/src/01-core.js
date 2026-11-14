@@ -71,7 +71,7 @@ function spiralOrder() {
 const SPIRAL = spiralOrder();
 
 // Estado do mundo (o anfitrião escreve direto; convidados preenchem a partir do snapshot)
-const V = { ph: 'idle', rnd: 0, epoch: 0, map: 0, t: ROUND_T, el: 0, c: 0, grid: new Uint8Array(N), slots: [], bombs: [], flames: [], pus: [], tiles: mapTiles(0), ld: null, win: -1, mwin: -1, sh: 0, diff: 1 };
+const V = { ph: 'idle', rnd: 0, epoch: 0, map: 0, t: ROUND_T, el: 0, c: 0, grid: new Uint8Array(N), slots: [], bombs: [], flames: [], pus: [], tiles: mapTiles(0), ld: null, wn: WINS, win: -1, mwin: -1, sh: 0, diff: 1 };
 function mkSlot(i) { return { i, k: '-', peer: null, nm: '', ch: i, w: 0, al: 0, x: SPAWNS[i][0], y: SPAWNS[i][1], d: 0, m: 0, maxB: 1, range: 2, spd: 0, shield: 0, kick: 0, pierce: 0, inv: 0, cd: 0, e: [0, 0], dashT: 0, dashDir: 0, tl: 0, lim: 0, _cdT: 0, _invT: 0, _lastQ: 0, _eSeq: 0, bot: null }; }
 V.slots = [0, 1, 2, 3].map(mkSlot);
 

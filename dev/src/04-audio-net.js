@@ -128,7 +128,7 @@ function snap() {
   let gr = ''; for (let i = 0; i < N; i++) gr += GCH[V.grid[i]];
   const R = Math.round;
   return {
-    n: ++Net.n, ph: V.ph, rnd: V.rnd, ep: V.epoch, map: V.map, t: R(V.t * 10), el: R(V.el * 10), c: V.c | 0, win: V.win, mw: V.mwin, sh: V.sh, ld: V.ld ? [R(V.ld[0] * 10) / 10, R(V.ld[1] * 10) / 10] : 0, df: V.diff, o: [Game.opt.map, Game.opt.bots, Game.opt.size], gr,
+    n: ++Net.n, ph: V.ph, rnd: V.rnd, ep: V.epoch, map: V.map, t: R(V.t * 10), el: R(V.el * 10), c: V.c | 0, win: V.win, mw: V.mwin, sh: V.sh, ld: V.ld ? [R(V.ld[0] * 10) / 10, R(V.ld[1] * 10) / 10] : 0, df: V.diff, o: [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, V.wn], gr,
     s: V.slots.map(s => [s.k, s.peer || 0, s.nm, s.ch, s.w, s.al, R(s.x * 100), R(s.y * 100), s.d, s.m, s.maxB, s.range, s.spd, s.shield, s.kick, s.pierce, s.inv, R(s.cd * 10), s.e[0], s.e[1], s.dash ? 1 : 0]),
     b: V.bombs.map(b => [b.id, R(b.x * 100), R(b.y * 100), b.o, R(b.fuse * 10), b.type, b.fly ? [b.fly.fx, b.fly.fy, R(b.fly.p * 100)] : 0]),
     f: V.flames.map(f => [f.id, R(f.ttl * 100), f.x, f.y, f.cells.map(c => String.fromCharCode(97 + c[0], 97 + c[1])).join('')]),
@@ -136,7 +136,7 @@ function snap() {
   };
 }
 function applySnap(g) {
-  V.ph = String(g.ph); V.rnd = g.rnd | 0; V.t = g.t / 10; V.el = g.el / 10; V.c = g.c | 0; V.win = g.win | 0; V.mwin = g.mw | 0; V.sh = g.sh | 0; V.ld = Array.isArray(g.ld) ? [+g.ld[0], +g.ld[1]] : null; V.diff = clamp(g.df | 0, 0, 2); Net.opt = Array.isArray(g.o) ? g.o : null;
+  V.ph = String(g.ph); V.rnd = g.rnd | 0; V.t = g.t / 10; V.el = g.el / 10; V.c = g.c | 0; V.win = g.win | 0; V.mwin = g.mw | 0; V.sh = g.sh | 0; V.ld = Array.isArray(g.ld) ? [+g.ld[0], +g.ld[1]] : null; V.diff = clamp(g.df | 0, 0, 2); Net.opt = Array.isArray(g.o) ? g.o : null; if (Net.opt) V.wn = clamp(Net.opt[4] | 0 || WINS, 1, 9);
   if ((g.map | 0) !== V.map || !V.tiles) { V.map = clamp(g.map | 0, 0, NMAP - 1); V.tiles = mapTiles(V.map); }
   const gr = String(g.gr); for (let i = 0; i < N; i++) { const k = GCH.indexOf(gr[i]); V.grid[i] = k < 0 ? 0 : k; }
   for (let i = 0; i < 4; i++) {

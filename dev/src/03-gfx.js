@@ -462,7 +462,7 @@ function gfxResize() {
 const _v = new THREE.Vector3();
 function fitCamera() {
   const w = G.w, h = G.h, portrait = h > w;
-  const mi0 = myIdx(), alive0 = mi0 >= 0 && V.slots[mi0].al, padTop = G.inGame ? (portrait ? 62 : 44) : 12, padBot = G.inGame ? (portrait ? (alive0 ? 208 : 70) : 6) : 12, padSide = (G.inGame && !portrait) ? Math.min(150, w * 0.16) : 4;
+  const mi0 = myIdx(), alive0 = mi0 >= 0 && V.slots[mi0].al, padTop = G.inGame ? (portrait ? 58 : 40) : 12, padBot = G.inGame ? (portrait ? (alive0 ? 196 : 60) : 4) : 12, padSide = (G.inGame && !portrait) ? Math.min(128, w * 0.14) : 2;
   const nx = (w - 2 * padSide) / w, ny = (h - padTop - padBot) / h, yd = (padBot - padTop) / h;
   G.elev = portrait ? 1.15 : 1.2;
   const measure = (d, tz) => { cam.position.set(0, Math.sin(G.elev) * d, tz + Math.cos(G.elev) * d); cam.lookAt(0, 0, tz); cam.updateMatrixWorld(); let hx = 0, y0 = 9, y1 = -9; for (const X of [-7.55, 7.55]) for (const Z of [-6.6, 6.55]) for (const Y of [0, 1.0]) { _v.set(X, Y, Z).project(cam); hx = Math.max(hx, Math.abs(_v.x)); y0 = Math.min(y0, _v.y); y1 = Math.max(y1, _v.y); } return { hx, y0, y1 }; };
@@ -472,14 +472,15 @@ function fitCamera() {
     for (let k = 0; k < 8; k++) { const r = measure(d, tz); tz -= ((r.y0 + r.y1) / 2 - yd) * d * 0.4; }
   }
   G.camD = d; G.camT.set(0, 0, tz);
+  const rr = measure(d, tz); G.fitX = clamp(rr.hx / nx, 0.2, 1); G.fitY = clamp((rr.y1 - rr.y0) / 2 / ny, 0.2, 1);
 }
 function camUpdate(dt) {
   let tx = G.camT.x, tz = G.camT.z, d = G.camD, az = 0;
   if (Game.mode === 'attract') { az = Math.sin(G.time * 0.13) * 0.3; d *= 0.92; }
   // em telas pequenas a câmera aproxima e acompanha o jogador
-  const mi = myIdx(), follow = G.inGame && (Game.cam === 2 || (Game.cam === 0 && G.h > G.w && Math.min(G.w, G.h) < 620)) && mi >= 0 && V.slots[mi].al && V.ph !== 'rend';
-  const Z = follow ? (G.h > G.w ? 0.62 : 0.8) : 1; G.fz += (Z - G.fz) * Math.min(1, dt * 4);
-  if (G.fz < 0.999) { const p = rpos(mi >= 0 ? mi : 0), k = 1 - G.fz; G.fx0 += (wx(p.x) / 6 * 7.55 * k - G.fx0) * Math.min(1, dt * 6); G.fy0 += (wz(p.y) / 5 * 6.6 * k - G.fy0) * Math.min(1, dt * 6); tx += G.fx0; tz = tz * G.fz + G.fy0; d *= G.fz; }
+  const mi = myIdx(), small = Math.min(G.w, G.h) < 700, follow = G.inGame && (Game.cam === 2 || (Game.cam === 0 && small)) && mi >= 0 && V.slots[mi].al && V.ph !== 'rend';
+  const cover = Math.max(0.5, Math.min(G.fitX || 1, G.fitY || 1)), Z = follow ? (Game.cam === 2 ? Math.min(cover, 0.6) : cover) : 1; G.fz += (Z - G.fz) * Math.min(1, dt * 4);
+  if (G.fz < 0.999) { const p = rpos(mi >= 0 ? mi : 0), kx = Math.max(0, 1 - G.fz / (G.fitX || 1)), ky = Math.max(0, 1 - G.fz / (G.fitY || 1)); G.fx0 += (wx(p.x) / 6 * 7.55 * kx - G.fx0) * Math.min(1, dt * 6); G.fy0 += (wz(p.y) / 5 * 6.6 * ky - G.fy0) * Math.min(1, dt * 6); tx += G.fx0; tz = tz * G.fz + G.fy0; d *= G.fz; }
   const zt = (V.ph === 'rend' && V.ld && Game.mode !== 'attract' && UI.phT < 2.4) ? 1 : 0; G.zoom += (zt - G.zoom) * Math.min(1, dt * 3);
   if (G.zoom > 0.002 && V.ld) { tx = lerp(tx, wx(V.ld[0]), G.zoom * 0.75); tz = lerp(tz, wz(V.ld[1]) + 0.4, G.zoom * 0.75); d = lerp(d, G.camD * 0.55, G.zoom); }
   G.shake *= Math.exp(-dt * 7);

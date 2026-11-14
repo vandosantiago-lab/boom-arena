@@ -15,7 +15,8 @@ function genGrid() {
   }
 }
 
-function simSetupMatch(mapChoice, diff) {
+function simSetupMatch(mapChoice, diff, time, wins) {
+  Sim.rt = clamp(time | 0 || ROUND_T, 60, 600); V.wn = clamp(wins | 0 || WINS, 1, 9);
   Sim.mapChoice = mapChoice; V.diff = diff;
   Sim.order = [4].concat([0, 1, 2, 3, 5, 6, 7].sort(() => Math.random() - 0.5));
   V.rnd = 0; V.mwin = -1;
@@ -35,7 +36,7 @@ function simStartRound() {
     s._cdT = 0; s._invT = 0; s.dashT = 0; s.tl = 0; s.lim = 0;
     s.bot = s.k === 'b' ? { t: Math.random() * 0.4, path: [], goal: -1 } : null;
   }
-  V.t = ROUND_T; V.el = 0; V.sh = 0; V.win = -1; V.ld = null;
+  V.t = Sim.rt || ROUND_T; V.el = 0; V.sh = 0; V.win = -1; V.ld = null;
   V.ph = 'count'; Sim.phT = 3; V.c = 3; Sim.shT = 0; Sim.endT = 0;
 }
 
@@ -156,8 +157,8 @@ function killSlot(s) { s.al = 0; s.m = 0; s.dashT = 0; V.ld = [s.x, s.y]; }
 
 function endRound(w) {
   V.win = w ? w.i : -1;
-  if (w) { w.w++; if (w.w >= WINS) V.mwin = w.i; }
-  if (V.mwin < 0 && V.rnd >= 7) { const o = V.slots.filter(s => s.k !== '-').sort((a, b) => b.w - a.w); V.mwin = (o.length > 1 && o[0].w === o[1].w) ? -2 : o[0].i; }
+  if (w) { w.w++; if (w.w >= V.wn) V.mwin = w.i; }
+  if (V.mwin < 0 && V.rnd >= V.wn * 4) { const o = V.slots.filter(s => s.k !== '-').sort((a, b) => b.w - a.w); V.mwin = (o.length > 1 && o[0].w === o[1].w) ? -2 : o[0].i; }
   V.ph = 'rend'; Sim.phT = 4.2;
 }
 
