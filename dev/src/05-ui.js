@@ -1,5 +1,5 @@
 // ===================== JOGO, ENTRADA E INTERFACE =====================
-const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4, time: 120, wins: 2, shuf: 0 }, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
+const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4, time: 120, wins: 2, shuf: 0, teams: 0, rev: 0 }, rank: {}, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
 const In = { x: 0, y: 0, bomb: false, abil: false, keys: {}, jid: null, jon: false, ox: 0, oy: 0, jx: 0, jy: 0 };
 const UI = { ph: '', ep: -1, phT: 0, c: -1, labs: [], sig: {}, bannerT: 0, toastT: 0, cdWas: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -10,14 +10,22 @@ function myIdx() { if (Game.mode === 'attract') return -1; if (Game.mode === 'cl
 function rpos(i) { if (Game.mode === 'client' && i === Net.myI) { const m = Game.me; m.dash = m.dashT > 0 ? 1 : 0; return m; } return V.slots[i]; }
 
 function request(type, cx, cy, dir) {
-  if (isSim()) return type === 'b' ? reqBomb(0, cx, cy) : reqAbility(0, type, cx, cy, dir);
+  if (isSim()) return type === 'v' ? reqRevenge(0, cx, cy) : type === 'b' ? reqBomb(0, cx, cy) : reqAbility(0, type, cx, cy, dir);
   Net.q.push([++Net.qseq, type, cx, cy, dir | 0]); if (Net.q.length > 5) Net.q.shift(); return true;
 }
 function localUpdate(dt) {
   const mi = myIdx(); if (mi < 0) return;
   const s = V.slots[mi], p = rpos(mi);
+  if (s.al) p.rv = 0;
+  if (V.ph === 'play' && !s.al && s.rev && !V.pz && !Net.frozen) {   // vingança: anda pela borda e arremessa
+    let ix = In.x, iy = In.y; if (!In.jon) { const k = In.keys; ix = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0); iy = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0); }
+    if (!p.rv) { perimStart(p); p.rv = 1; toast('Vingança: ande pela borda e arremesse bombas!', 2600); }
+    perimMove(p, ix, iy, dt);
+    if (In.bomb) { In.bomb = false; if (s.cd <= 0.05) request('v', Math.round(p.x), Math.round(p.y), p.d); }
+    In.abil = false; return;
+  }
   if (V.ph !== 'play' || !s.al || V.pz || s.stun || Net.frozen) { p.m = 0; p.dashT = 0; p.pdT = 0; p.tc = 0; In.bomb = In.abil = false; return; }
-  if (Game.mode === 'client') p.spd = s.spd;
+  if (Game.mode === 'client') { p.spd = s.spd; p.curse = s.curse; }
   let ix = In.x, iy = In.y;
   if (!In.jon) { const k = In.keys; ix = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0); iy = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0); }
   const r = updateMover(p, ix, iy, dt);
@@ -28,7 +36,8 @@ function localUpdate(dt) {
   if (In.bomb) { In.bomb = false; request('b', cx, cy, p.d); }
   if (In.abil) {
     In.abil = false;
-    if (CHARS[s.ch].k === 2) { if (s.cd <= 0.05 && performance.now() > Game.dashLock) { Game.dashLock = performance.now() + 900; if (request('a', cx, cy, p.d) !== false) { p.dashT = 0.2; p.dashDir = p.d; } } }
+    if (CHARS[s.ch].k === 6) { if (s.cd <= 0.05 && performance.now() > Game.dashLock) { const tg = blinkTarget(cx, cy, p.d); if (tg) { Game.dashLock = performance.now() + 900; if (request('a', cx, cy, p.d) !== false) { p.x = tg[0]; p.y = tg[1]; p.pdT = 0; Au.play('tele', 0.7); } } } }
+    else if (CHARS[s.ch].k === 2) { if (s.cd <= 0.05 && performance.now() > Game.dashLock) { Game.dashLock = performance.now() + 900; if (request('a', cx, cy, p.d) !== false) { p.dashT = 0.2; p.dashDir = p.d; } } }
     else request('a', cx, cy, p.d);
   }
 }
@@ -66,7 +75,7 @@ async function joinRoom(code) {
 function startMatch() {
   if (V.slots.filter(s => s.k !== '-').length < 2) return toast('É preciso pelo menos 2 participantes.');
   for (const s of V.slots) { s._ack = -1; s.away = 0; }
-  simSetupMatch(Game.opt.map, Math.max(0, Game.opt.bots - 1), Game.opt.time, Game.opt.wins, Game.opt.shuf);
+  simSetupMatch(Game.opt.map, Math.max(0, Game.opt.bots - 1), Game.opt.time, Game.opt.wins, Game.opt.shuf, Game.opt.teams, Game.opt.rev);
 }
 function lobbyBuild() {
   const hs = [{ peer: Net.gid, nm: Game.name, ch: Game.ch, jt: -1 }];
@@ -79,6 +88,17 @@ function lobbyBuild() {
     else { s.k = '-'; s.peer = null; s.nm = ''; }
     s.al = 0;
   }
+}
+
+// ---------- ranking da sala (torneio) ----------
+function rankUpdate() {
+  const win = V.mwin >= 0 ? V.slots[V.mwin] : null;
+  for (const s of V.slots) { if (s.k === '-') continue; const key = s.k === 'h' ? 'h:' + s.peer : 'b:' + s.nm, r = Game.rank[key] || (Game.rank[key] = { nm: s.nm, ch: s.ch, mw: 0, rw: 0, mp: 0 }); r.nm = s.nm; r.ch = s.ch; r.mp++; r.rw += s.w; if (win && (s === win || (V.teams && teamOf(s.i) === teamOf(win.i)))) r.mw++; }
+}
+function rankList() { return Object.values(Game.rank).sort((a, b) => b.mw - a.mw || b.rw - a.rw).slice(0, 8).map(r => [r.nm, r.ch, r.mw, r.rw, r.mp]); }
+function rankHtml() {
+  const L = isSim() ? rankList() : (Net.rk || []); if (!L.length) return '';
+  return '<div class="rank"><span>Ranking da sala</span>' + L.map((r, i) => `<div><b>${i + 1}º</b>${avatar(clamp(r[1] | 0, 0, NCH - 1), 'transparent', 'sm')}<em>${esc(cleanName(r[0]))}</em><u>${r[2] | 0} ${(r[2] | 0) === 1 ? 'partida ganha' : 'partidas ganhas'} · ${r[3] | 0} rodadas</u></div>`).join('') + '</div>';
 }
 
 // ---------- eventos do jogo ----------
@@ -110,7 +130,7 @@ function busy(on) { for (const id of ['b-solo', 'b-create', 'b-join', 'b-go']) $
 function avatar(ch, col, cls = '') { const src = G.portraits[ch]; return `<span class="av ${cls}" style="border-color:${col};background:${CHARS[ch].col}">${src ? `<img src="${src}" alt="">` : esc(CHARS[ch].name[0])}</span>`; }
 
 UI.init = function () {
-  const L = $('labels'); for (let i = 0; i < NS; i++) { const d = document.createElement('div'); d.className = 'lab'; d.style.display = 'none'; d.style.color = SLOTCOL[i]; L.appendChild(d); UI.labs.push(d); }
+  const L = $('labels'); for (let i = 0; i < NS; i++) { const d = document.createElement('div'); d.className = 'lab'; d.style.display = 'none'; d.style.color = colOf(i); L.appendChild(d); UI.labs.push(d); }
   try { Game.name = cleanName(localStorage.getItem('boom.nm') || 'Jogador'); Game.ch = clamp(parseInt(localStorage.getItem('boom.ch')) || 0, 0, NCH - 1); Au.on = localStorage.getItem('boom.snd') !== '0'; Au.vib = localStorage.getItem('boom.vib') !== '0'; Mu.on = localStorage.getItem('boom.mus') !== '0'; Game.cam = clamp(parseInt(localStorage.getItem('boom.cam')) || 0, 0, 2); } catch (e) { }
   $('nm').value = Game.name === 'Jogador' ? '' : Game.name;
   $('nm').addEventListener('input', () => { Game.name = cleanName($('nm').value); try { localStorage.setItem('boom.nm', Game.name); } catch (e) { } });
@@ -130,7 +150,7 @@ UI.init = function () {
   tap('b-again', () => { if (isSim()) { clearWorld(); V.ph = 'lobby'; } });
   tap('b-exit', () => goHome());
   $('bt-bomb').innerHTML = `<img src="${G.icons[0]}" alt="">`;
-  $('how-list').innerHTML = [0, 1, 2, 3, 4, 5, 6].map(t => `<div class="pu"><img src="${G.icons[t]}" style="background:${PU_BG[t]}" alt=""><span>${['Mais uma bomba ao mesmo tempo', 'Explosão alcança mais longe', 'Você anda mais rápido', 'Aguenta uma explosão', 'Chuta bombas ao encostar nelas', 'Explosão atravessa blocos', 'Aperte bomba de novo em cima dela para arremessar'][t]}</span></div>`).join('');
+  $('how-list').innerHTML = [0, 1, 2, 3, 4, 5, 6, 8, 9, 7].map((t, j) => `<div class="pu"><img src="${G.icons[t]}" style="background:${PU_BG[t]}" alt=""><span>${['Mais uma bomba ao mesmo tempo', 'Explosão alcança mais longe', 'Você anda mais rápido', 'Aguenta uma explosão', 'Chuta bombas ao encostar nelas', 'Explosão atravessa blocos', 'Aperte bomba de novo em cima dela para arremessar', 'Aperte bomba de frente para uma bomba e ela voa longe', 'Suas próximas 2 bombas congelam em vez de explodir', 'Maldição por 10 segundos; passa para quem você encostar'][j]}</span></div>`).join('');
   // controles
   const jz = $('joyzone'), joy = $('joy'), knob = $('joyk');
   const R = 30, DEAD = 7, hasTouch = 'ontouchstart' in window;
@@ -190,20 +210,24 @@ UI.renderSettings = function () {
   }
 };
 UI.renderLobby = function () {
-  const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, Game.opt.wins, Game.opt.shuf] : (Net.opt || [-1, 0, 4, 120, 2, 0]), size = clamp(opt[2] | 0 || 4, 2, NS);
-  const sig = JSON.stringify([Game.mode, Net.code, mi, opt, Game.ch, V.slots.map(s => [s.k, s.nm, s.ch, s.peer])]); if (sig === UI.sig.lobby) return; UI.sig.lobby = sig;
+  const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, Game.opt.wins, Game.opt.shuf, Game.opt.teams, Game.opt.rev] : (Net.opt || [-1, 0, 4, 120, 2, 0, 0, 0]), size = clamp(opt[2] | 0 || 4, 2, NS);
+  if (isSim()) V.teams = !!Game.opt.teams;
+  const sig = JSON.stringify([Game.mode, Net.code, mi, opt, Game.ch, MD.ver, isSim() ? rankList() : Net.rk, V.slots.map(s => [s.k, s.nm, s.ch, s.peer])]); if (sig === UI.sig.lobby) return; UI.sig.lobby = sig;
   $('lb-head').innerHTML = online ? `<div class="code"><small>CÓDIGO DA SALA</small><b>${esc(Net.code)}</b><button class="link" id="b-copy">Copiar código</button></div><canvas id="qr" width="132" height="132" class="hide"></canvas>` : `<div class="code"><small>MODO</small><b class="solo">Solo</b></div>`;
   $('lb-hint').textContent = online ? (HOSTED ? 'Os outros apontam a câmera do celular para o QR, ou abrem este mesmo link, tocam em "Entrar em sala" e digitam o código.' : 'Os outros jogadores abrem este mesmo jogo, tocam em "Entrar em sala" e digitam o código.') : 'Você contra os bots. Escolha o mapa e a dificuldade.';
-  $('lb-slots').innerHTML = V.slots.slice(0, size).map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${SLOTCOL[i]}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${SLOTCOL[i]}"></span>${avatar(s.ch, SLOTCOL[i])}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i></div>${i === mi ? '<u>Você</u>' : s.k === 'b' ? '<u>Bot</u>' : i === 0 ? '<u>Anfitrião</u>' : ''}</div>`).join('');
+  $('lb-slots').innerHTML = V.slots.slice(0, size).map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${colOf(i)}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${colOf(i)}"></span>${avatar(s.ch, colOf(i))}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i></div>${i === mi ? '<u>Você</u>' : s.k === 'b' ? '<u>Bot</u>' : i === 0 ? '<u>Anfitrião</u>' : ''}</div>`).join('');
   const chips = (key, names, cur, first) => names.map((n, i) => `<button class="chip${i + first === cur ? ' sel' : ''}" data-k="${key}" data-v="${i + first}" ${host ? '' : 'disabled'}>${n}</button>`).join('');
   const vchips = (key, list, cur) => list.map(q => `<button class="chip${q[0] === cur ? ' sel' : ''}" data-k="${key}" data-v="${q[0]}" ${host ? '' : 'disabled'}>${q[1]}</button>`).join('');
   $('lb-opts').innerHTML = `<div class="srow"><span>Seu personagem · ${CHARS[Game.ch].name} · ${CHARS[Game.ch].tag}</span><div class="chips avs">${CHARS.map((c, i) => `<button class="chip av-chip${i === Game.ch ? ' sel' : ''}" data-k="ch" data-v="${i}">${avatar(i, i === Game.ch ? '#fff' : 'transparent', 'sm')}</button>`).join('')}</div></div>
    <div class="srow"><span>Jogadores</span><div class="chips seg">${chips('size', ['2', '3', '4', '5', '6'], size, 2)}</div></div>
+   <div class="srow"><span>Modo de jogo</span><div class="chips seg">${vchips('teams', [[0, 'Todos contra todos'], [1, 'Times (vermelho x azul)']], opt[6] | 0)}</div></div>
+   <div class="srow"><span>Vingança dos eliminados</span><div class="chips seg">${vchips('rev', [[0, 'Desligada'], [1, 'Ligada']], opt[7] | 0)}</div></div>
    <div class="srow"><span>Posição inicial</span><div class="chips seg">${vchips('shuf', [[0, 'Fixa'], [1, 'Embaralhada a cada rodada']], opt[5] | 0)}</div></div>
    <div class="srow"><span>Tempo de cada rodada</span><div class="chips seg">${vchips('time', [[120, '2 min'], [180, '3 min'], [300, '5 min'], [480, '8 min']], opt[3] || 120)}</div></div>
    <div class="srow"><span>Rodadas · vence quem ganhar</span><div class="chips seg">${vchips('wins', [[1, '1'], [2, '2'], [3, '3'], [5, '5']], opt[4] || 2)}</div></div>
    <div class="srow"><span>Mapa</span><div class="chips">${chips('map', ['Sorteio', ...MAPS], opt[0], -1)}</div></div>
    <div class="srow"><span>Bots</span><div class="chips seg">${chips('bots', online ? ['Sem bots', ...DIFFS] : DIFFS, opt[1], online ? 0 : 1)}</div></div>`;
+  $('lb-rank').innerHTML = rankHtml();
   const n = V.slots.filter(s => s.k !== '-').length;
   $('b-start').classList.toggle('hide', !host); $('b-start').disabled = n < 2;
   $('lb-wait').textContent = host ? (n < 2 ? 'Aguardando mais jogadores ou ative os bots.' : '') : (mi < 0 ? 'Sala cheia ou partida em andamento — aguarde uma vaga.' : 'Aguardando o anfitrião começar…');
@@ -220,8 +244,9 @@ UI.renderLobby = function () {
 };
 UI.renderEnd = function () {
   const w = V.mwin >= 0 ? V.slots[V.mwin] : null, mi = myIdx();
-  $('end-top').innerHTML = w ? `${avatar(w.ch, SLOTCOL[w.i], 'big')}<h2>${esc(w.nm)} venceu a partida!</h2><p>${w.i === mi ? 'Você é o campeão da arena.' : 'Campeão da arena com ' + CHARS[w.ch].name + '.'}</p>` : `<h2>Empate!</h2><p>Ninguém levou a melhor desta vez.</p>`;
-  $('end-list').innerHTML = V.slots.filter(s => s.k !== '-').sort((a, b) => b.w - a.w).map(s => `<div class="slot"><span class="dot" style="background:${SLOTCOL[s.i]}"></span>${avatar(s.ch, SLOTCOL[s.i])}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name}</i></div><u>${s.w} ${s.w === 1 ? 'vitória' : 'vitórias'}</u></div>`).join('');
+  $('end-top').innerHTML = w ? `${avatar(w.ch, colOf(w.i), 'big')}<h2>${V.teams ? TEAMNAME[w.i & 1] : esc(w.nm)} venceu a partida!</h2><p>${V.teams ? (mi >= 0 && teamOf(mi) === teamOf(w.i) ? 'Seu time é o campeão da arena.' : 'Campeões da arena.') : w.i === mi ? 'Você é o campeão da arena.' : 'Campeão da arena com ' + CHARS[w.ch].name + '.'}</p>` : `<h2>Empate!</h2><p>Ninguém levou a melhor desta vez.</p>`;
+  $('end-list').innerHTML = V.slots.filter(s => s.k !== '-').sort((a, b) => b.w - a.w).map(s => `<div class="slot"><span class="dot" style="background:${colOf(s.i)}"></span>${avatar(s.ch, colOf(s.i))}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name}</i></div><u>${s.w} ${s.w === 1 ? 'vitória' : 'vitórias'}</u></div>`).join('');
+  $('end-rank').innerHTML = rankHtml();
   $('b-again').classList.toggle('hide', !isSim()); $('end-wait').textContent = isSim() ? '' : 'Aguardando o anfitrião…';
 };
 UI.onPhase = function () {
@@ -232,7 +257,7 @@ UI.onPhase = function () {
   if (ph === 'lobby') UI.sig.lobby = '';
   if (ph === 'count') { UI.c = -1; UI.sig.chips = ''; UI.sig.stats = ''; }
   if (ph === 'play') { banner('VAI!', 700); Au.play('go'); }
-  if (ph === 'rend') { const w = V.win >= 0 ? V.slots[V.win] : null, mi = myIdx(); banner(w ? (w.i === mi ? 'Você venceu a rodada!' : w.nm + ' venceu a rodada!') : 'Empate!', 3600, 'Rodada ' + V.rnd); Au.play(w && w.i === mi ? 'win' : 'lose'); }
+  if (ph === 'rend') { const w = V.win >= 0 ? V.slots[V.win] : null, mi = myIdx(); const mine = w && (w.i === mi || (V.teams && mi >= 0 && teamOf(mi) === teamOf(w.i))); banner(w ? (V.teams ? TEAMNAME[w.i & 1] + ' venceu a rodada!' : w.i === mi ? 'Você venceu a rodada!' : w.nm + ' venceu a rodada!') : 'Empate!', 3600, 'Rodada ' + V.rnd); Au.play(mine ? 'win' : 'lose'); }
   if (ph === 'mend') { UI.renderEnd(); Au.play(V.mwin === myIdx() ? 'win' : 'lose'); }
 };
 UI.tick = function (dt) {
@@ -249,14 +274,14 @@ UI.tick = function (dt) {
   const mi = myIdx(), s = mi >= 0 ? V.slots[mi] : null;
   const tt = Math.ceil(V.t), ts = Math.floor(tt / 60) + ':' + String(tt % 60).padStart(2, '0');
   if (ts !== UI.sig.tm) { UI.sig.tm = ts; $('tm').textContent = ts; $('clock').classList.toggle('hot', V.t <= SHRINK_AT); $('rd').textContent = V.t <= SHRINK_AT ? 'A arena está fechando!' : 'Rodada ' + V.rnd; }
-  const cs = V.wn + JSON.stringify(V.slots.map(q => [q.k, q.ch, q.w, q.al, q.nm]));
-  if (cs !== UI.sig.chips) { UI.sig.chips = cs; $('chips').classList.toggle('many', V.slots.filter(q => q.k !== '-').length > 4); $('chips').innerHTML = V.slots.map((q, i) => q.k === '-' ? '' : `<div class="pchip${q.al ? '' : ' dead'}${i === mi ? ' me' : ''}">${avatar(q.ch, SLOTCOL[i], 'sm')}<span>${V.wn > 3 ? q.w + '/' + V.wn : '●'.repeat(q.w) + '○'.repeat(Math.max(0, V.wn - q.w))}</span></div>`).join(''); }
-  const spec = !s || !s.al;
+  const cs = V.wn + (V.teams ? 't' : 'f') + MD.ver + JSON.stringify(V.slots.map(q => [q.k, q.ch, q.w, q.al, q.nm]));
+  if (cs !== UI.sig.chips) { UI.sig.chips = cs; $('chips').classList.toggle('many', V.slots.filter(q => q.k !== '-').length > 4); $('chips').innerHTML = V.slots.map((q, i) => q.k === '-' ? '' : `<div class="pchip${q.al ? '' : ' dead'}${i === mi ? ' me' : ''}">${avatar(q.ch, colOf(i), 'sm')}<span>${V.wn > 3 ? q.w + '/' + V.wn : '●'.repeat(q.w) + '○'.repeat(Math.max(0, V.wn - q.w))}</span></div>`).join(''); }
+  const spec = !s || (!s.al && !s.rev); { const rv = !!(s && !s.al && s.rev); if (rv !== UI.revWas) { UI.revWas = rv; $('bt-ab').style.visibility = rv ? 'hidden' : ''; } }
   if (spec !== UI.specWas) { UI.specWas = spec; fitCamera(); }
   show('controls', !spec); show('spec', spec && V.ph === 'play'); if (spec) { if (In.jon) UI.jend(); $('spec').textContent = s ? 'Você foi eliminado — assistindo ao resto da rodada' : 'Assistindo — você entra na próxima partida'; }
   if (s) {
-    const st = [s.maxB, s.range, s.spd, s.shield, s.kick || CHARS[s.ch].k === 3 ? 1 : 0, s.pierce, s.glove].join();
-    if (st !== UI.sig.stats) { UI.sig.stats = st; const it = (t, v) => `<span><img src="${G.icons[t]}" alt="">${v}</span>`; $('stats').innerHTML = it(0, s.maxB) + it(1, s.range) + it(2, s.spd) + (s.shield ? it(3, '') : '') + (s.kick || CHARS[s.ch].k === 3 ? it(4, '') : '') + (s.pierce ? it(5, '') : '') + (s.glove ? it(6, '') : ''); }
+    const st = [s.maxB, s.range, s.spd, s.shield, s.kick || CHARS[s.ch].k === 3 ? 1 : 0, s.pierce, s.glove, s.punch, s.ice, s.curse].join();
+    if (st !== UI.sig.stats) { UI.sig.stats = st; const it = (t, v) => `<span><img src="${G.icons[t]}" alt="">${v}</span>`; $('stats').innerHTML = it(0, s.maxB) + it(1, s.range) + it(2, s.spd) + (s.shield ? it(3, '') : '') + (s.kick || CHARS[s.ch].k === 3 ? it(4, '') : '') + (s.pierce ? it(5, '') : '') + (s.glove ? it(6, '') : '') + (s.punch ? it(8, '') : '') + (s.ice ? it(9, s.ice) : '') + (s.curse ? it(7, '') : ''); }
     const remote = CHARS[s.ch].k === 0 && V.bombs.some(b => b.o === mi && b.type === 1), label = remote ? 'DETONAR' : CHARS[s.ch].btn;
     if (label !== UI.sig.ab) { UI.sig.ab = label; $('ab-l').textContent = label; $('bt-ab').style.setProperty('--c', CHARS[s.ch].col); $('bt-ab').classList.toggle('arm', remote); }
     const p = clamp(s.cd / CHARS[s.ch].cd, 0, 1); $('bt-ab').style.setProperty('--p', (p * 100).toFixed(0) + '%'); $('bt-ab').classList.toggle('cool', p > 0.01 && !remote);

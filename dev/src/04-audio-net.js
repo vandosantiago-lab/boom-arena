@@ -32,6 +32,8 @@ const Au = {
       else if (name === 'shing') { if (this.gate('shing', 400)) return; this.nz(0.14, 9000, 3000, 0.16 * v); this.tone(2400, 1500, 0.12, 'sawtooth', 0.05 * v); }
       else if (name === 'alarm') [0, 0.32, 0.64].forEach(d => { this.tone(880, 880, 0.15, 'square', 0.2 * v, d); this.tone(660, 660, 0.15, 'square', 0.2 * v, d + 0.16); });
       else if (name === 'step') this.nz(0.035, 900, 300, 0.07 * v);
+      else if (name === 'freeze') { this.tone(1800, 600, 0.35, 'sine', 0.2 * v); this.nz(0.3, 8000, 2500, 0.18 * v); }
+      else if (name === 'curse') [0, 0.1, 0.2].forEach((d, i) => this.tone(330 - i * 50, 200 - i * 30, 0.14, 'sawtooth', 0.14 * v, d));
       else if (name === 'dizzy') [0, 0.12, 0.24, 0.36].forEach((d, i) => this.tone(900 - i * 120, 1200 - i * 120, 0.1, 'sine', 0.16 * v, d));
       else if (name === 'tick') this.tone(1500, 1500, 0.03, 'square', 0.08 * v);
     } catch (e) { }
@@ -155,25 +157,25 @@ function snap() {
   let gr = ''; for (let i = 0; i < N; i++) gr += GCH[V.grid[i]];
   const R = Math.round;
   return {
-    n: ++Net.n, ph: V.ph, rnd: V.rnd, ep: V.epoch, map: V.map, t: R(V.t * 10), el: R(V.el * 10), c: V.c | 0, win: V.win, mw: V.mwin, sh: V.sh, ld: V.ld ? [R(V.ld[0] * 10) / 10, R(V.ld[1] * 10) / 10] : 0, df: V.diff, o: [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, V.wn, Game.opt.shuf], pz: V.pz ? 1 : 0, pb: V.pzBy | 0, gr,
-    s: V.slots.map(s => [s.k, s.peer || 0, s.nm, s.ch, s.w, s.al, R(s.x * 100), R(s.y * 100), s.d, s.m, s.maxB, s.range, s.spd, s.shield, s.kick, s.pierce, s.inv, R(s.cd * 10), s.e[0], s.e[1], s.dash ? 1 : 0, s.glove, s.stun, s.away ? 1 : 0]),
+    n: ++Net.n, ph: V.ph, rnd: V.rnd, ep: V.epoch, map: V.map, t: R(V.t * 10), el: R(V.el * 10), c: V.c | 0, win: V.win, mw: V.mwin, sh: V.sh, ld: V.ld ? [R(V.ld[0] * 10) / 10, R(V.ld[1] * 10) / 10] : 0, df: V.diff, o: [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, V.wn, Game.opt.shuf, V.teams ? 1 : 0, V.revOn ? 1 : 0], rk: (V.ph === 'lobby' || V.ph === 'mend') ? rankList() : 0, pz: V.pz ? 1 : 0, pb: V.pzBy | 0, gr,
+    s: V.slots.map(s => [s.k, s.peer || 0, s.nm, s.ch, s.w, s.al, R(s.x * 100), R(s.y * 100), s.d, s.m, s.maxB, s.range, s.spd, s.shield, s.kick, s.pierce, s.inv, R(s.cd * 10), s.e[0], s.e[1], s.dash ? 1 : 0, s.glove, s.stun, s.away ? 1 : 0, s.curse, s.punch, s.ice, s.rev]),
     b: V.bombs.map(b => [b.id, R(b.x * 100), R(b.y * 100), b.o, R(b.fuse * 10), b.type, b.fly ? [b.fly.fx, b.fly.fy, R(b.fly.p * 100)] : 0]),
-    f: V.flames.map(f => [f.id, R(f.ttl * 100), f.x, f.y, f.cells.map(c => String.fromCharCode(97 + c[0], 97 + c[1])).join('')]),
+    f: V.flames.map(f => [f.id, R(f.ttl * 100), f.x, f.y, f.cells.map(c => String.fromCharCode(97 + c[0], 97 + c[1])).join(''), f.ice ? 1 : 0]),
     p: V.pus.map(p => [p.x, p.y, p.type]),
   };
 }
 function applySnap(g) {
-  V.ph = String(g.ph); V.rnd = g.rnd | 0; V.t = g.t / 10; V.el = g.el / 10; V.c = g.c | 0; V.win = g.win | 0; V.mwin = g.mw | 0; V.sh = g.sh | 0; V.ld = Array.isArray(g.ld) ? [+g.ld[0], +g.ld[1]] : null; V.diff = clamp(g.df | 0, 0, 2); Net.opt = Array.isArray(g.o) ? g.o : null; if (Net.opt) V.wn = clamp(Net.opt[4] | 0 || WINS, 1, 9);
+  V.ph = String(g.ph); V.rnd = g.rnd | 0; V.t = g.t / 10; V.el = g.el / 10; V.c = g.c | 0; V.win = g.win | 0; V.mwin = g.mw | 0; V.sh = g.sh | 0; V.ld = Array.isArray(g.ld) ? [+g.ld[0], +g.ld[1]] : null; V.diff = clamp(g.df | 0, 0, 2); Net.opt = Array.isArray(g.o) ? g.o : null; if (Net.opt) { V.wn = clamp(Net.opt[4] | 0 || WINS, 1, 9); V.teams = !!Net.opt[6]; V.revOn = !!Net.opt[7]; } if (Array.isArray(g.rk)) Net.rk = g.rk;
   if ((g.map | 0) !== V.map || !V.tiles) { V.map = clamp(g.map | 0, 0, NMAP - 1); V.tiles = mapTiles(V.map); }
   const gr = String(g.gr); for (let i = 0; i < N; i++) { const k = GCH.indexOf(gr[i]); V.grid[i] = k < 0 ? 0 : k; }
   V.pz = !!g.pz; V.pzBy = g.pb | 0;
   for (let i = 0; i < NS; i++) {
     const a = g.s && g.s[i], s = V.slots[i]; if (!Array.isArray(a)) { s.k = '-'; continue; }
     s.k = a[0] === 'h' || a[0] === 'b' ? a[0] : '-'; s.peer = a[1] || null; s.nm = cleanName(a[2]); s.ch = clamp(a[3] | 0, 0, NCH - 1); s.w = a[4] | 0; s.al = a[5] ? 1 : 0; s.x = a[6] / 100; s.y = a[7] / 100; s.d = a[8] & 3; s.m = a[9] ? 1 : 0;
-    s.maxB = a[10] | 0; s.range = a[11] | 0; s.spd = a[12] | 0; s.shield = a[13] | 0; s.kick = a[14] | 0; s.pierce = a[15] | 0; s.inv = a[16] | 0; s.cd = a[17] / 10; s.e = [a[18] | 0, a[19] | 0]; s.glove = a[21] | 0; s.stun = a[22] | 0; s.away = a[23] | 0; s.dash = a[20] | 0;
+    s.maxB = a[10] | 0; s.range = a[11] | 0; s.spd = a[12] | 0; s.shield = a[13] | 0; s.kick = a[14] | 0; s.pierce = a[15] | 0; s.inv = a[16] | 0; s.cd = a[17] / 10; s.e = [a[18] | 0, a[19] | 0]; s.glove = a[21] | 0; s.stun = a[22] | 0; s.away = a[23] | 0; s.curse = a[24] | 0; s.punch = a[25] | 0; s.ice = a[26] | 0; s.rev = a[27] | 0; s.dash = a[20] | 0;
   }
   V.bombs = (g.b || []).map(b => ({ id: b[0], x: b[1] / 100, y: b[2] / 100, o: b[3], fuse: b[4] / 10, type: b[5], range: 2, pierce: 0, sl: -1, fly: b[6] ? { fx: b[6][0], fy: b[6][1], p: b[6][2] / 100 } : null }));
-  V.flames = (g.f || []).map(f => { const cells = [], s = String(f[4]); for (let i = 0; i + 1 < s.length; i += 2) cells.push([s.charCodeAt(i) - 97, s.charCodeAt(i + 1) - 97]); return { id: f[0], ttl: f[1] / 100, x: f[2], y: f[3], cells }; });
+  V.flames = (g.f || []).map(f => { const cells = [], s = String(f[4]); for (let i = 0; i + 1 < s.length; i += 2) cells.push([s.charCodeAt(i) - 97, s.charCodeAt(i + 1) - 97]); return { id: f[0], ttl: f[1] / 100, x: f[2], y: f[3], cells, ice: f[5] ? 1 : 0 }; });
   V.pus = (g.p || []).map(p => ({ x: p[0], y: p[1], type: p[2] }));
   Net.myI = V.slots.findIndex(s => s.k === 'h' && s.peer === Net.gid);
   if ((g.ep | 0) !== V.epoch) {
@@ -211,8 +213,9 @@ function netHostPoll() {
     if (pr.r !== V.epoch) { s._ack = -1; continue; }
     const q = Array.isArray(pr.q) ? pr.q : [];
     if (s._ack !== V.epoch) { s._ack = V.epoch; s._lastQ = 0; s._eSeq = -1; for (const e of q) if (Array.isArray(e) && e[0] > s._lastQ) s._lastQ = e[0]; }
+    if (!s.al && s.rev && Array.isArray(pr.p)) { const x = pr.p[0] / 100, y = pr.p[1] / 100; if (x >= -1 && y >= -1 && x <= GW && y <= GH && (x <= -1 || x >= GW || y <= -1 || y >= GH)) { s.x = x; s.y = y; s.d = pr.p[2] & 3; s.m = pr.p[3] ? 1 : 0; } }
     if (s.al && Array.isArray(pr.p)) { const x = pr.p[0] / 100, y = pr.p[1] / 100; if (x >= 0 && y >= 0 && x <= GW - 1 && y <= GH - 1) { s.x = x; s.y = y; } s.d = pr.p[2] & 3; s.m = pr.p[3] ? 1 : 0; s.dash = pr.p[4] ? 1 : 0; }
-    for (const e of q) if (Array.isArray(e) && e[0] > s._lastQ) { s._lastQ = e[0]; if (e[1] === 'z') simTogglePause(s.i); else if (e[1] === 'b') reqBomb(s.i, e[2], e[3]); else reqAbility(s.i, e[1] === 'p' ? 'p' : 'a', e[2], e[3], e[4] | 0); }
+    for (const e of q) if (Array.isArray(e) && e[0] > s._lastQ) { s._lastQ = e[0]; if (e[1] === 'z') simTogglePause(s.i); else if (e[1] === 'v') reqRevenge(s.i, e[2], e[3]); else if (e[1] === 'b') reqBomb(s.i, e[2], e[3]); else reqAbility(s.i, e[1] === 'p' ? 'p' : 'a', e[2], e[3], e[4] | 0); }
     if (Array.isArray(pr.e) && pr.e[0] !== s._eSeq) { if (s._eSeq !== undefined && s._eSeq !== -1) s.e = [s.e[0] + 1, pr.e[1] & 3]; s._eSeq = pr.e[0]; }
   }
 }

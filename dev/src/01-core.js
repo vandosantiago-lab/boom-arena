@@ -18,16 +18,16 @@ const CHARS = [
   { name: 'Luna', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#12b5a4', cd: 5, k: 1 },
   { name: 'Zeca', tag: 'Arrancada', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#7c4dff', cd: 5, k: 2 },
   { name: 'Dudu', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5, k: 3 },
-  { name: 'Bia', tag: 'Bomba remota', desc: 'Planta uma bomba extra e detona na hora que quiser.', btn: 'REMOTA', col: '#e0409a', cd: 4, k: 0 },
-  { name: 'Téo', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#2e9a4a', cd: 5, k: 1 },
-  { name: 'Nina', tag: 'Arrancada', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#ff5a7a', cd: 5, k: 2 },
-  { name: 'Rex', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#d12a2a', cd: 3.5, k: 3 },
+  { name: 'Bia', tag: 'Bomba de gelo', desc: 'Arremessa uma bomba de gelo que congela quem estiver na explosão.', btn: 'GELO', col: '#4fc3ff', cd: 7, k: 4 },
+  { name: 'Téo', tag: 'Escudo', desc: 'Ergue um escudo por 3 segundos que aguenta uma explosão.', btn: 'ESCUDO', col: '#8f9bb3', cd: 9, k: 5 },
+  { name: 'Nina', tag: 'Teleporte', desc: 'Some e reaparece até três casas à frente, atravessando blocos.', btn: 'SUMIR', col: '#c2185b', cd: 6, k: 6 },
+  { name: 'Rex', tag: 'Soco', desc: 'Dá um soco na bomba à frente e ela voa por cima dos blocos.', btn: 'SOCO', col: '#ff9f43', cd: 4, k: 7 },
 ];
 const NCH = CHARS.length;
 const SLOTCOL = ['#ff4d4d', '#3db8ff', '#ffd23d', '#5dea8c', '#c77dff', '#ff9f43'];
 const MAPS = ['Clássico', 'Praia', 'Jardim', 'Deserto', 'Castelo'];
 const NMAP = MAPS.length;
-const PU_NAMES = ['+1 bomba', '+1 fogo', 'Velocidade', 'Escudo', 'Chute', 'Fogo perfurante', 'Luva de arremesso'];
+const PU_NAMES = ['+1 bomba', '+1 fogo', 'Velocidade', 'Escudo', 'Chute', 'Fogo perfurante', 'Luva de arremesso', 'Caveira: maldição!', 'Soco', 'Bombas de gelo'];
 const DIFFS = ['Fácil', 'Normal', 'Difícil'];
 const EMOTES = ['👍', '😂', '😱', '💣'];
 
@@ -62,8 +62,8 @@ function spiralOrder() {
 const SPIRAL = spiralOrder();
 
 // Estado do mundo (o anfitrião escreve direto; convidados preenchem a partir do snapshot)
-const V = { ph: 'idle', rnd: 0, epoch: 0, map: 0, t: ROUND_T, el: 0, c: 0, grid: new Uint8Array(N), slots: [], bombs: [], flames: [], pus: [], tiles: mapTiles(0), ld: null, wn: WINS, pz: false, win: -1, mwin: -1, sh: 0, diff: 1 };
-function mkSlot(i) { return { i, k: '-', peer: null, nm: '', ch: i, w: 0, al: 0, x: SPAWNS[i][0], y: SPAWNS[i][1], d: 0, m: 0, maxB: 1, range: 2, spd: 0, shield: 0, kick: 0, pierce: 0, inv: 0, cd: 0, glove: 0, stun: 0, away: 0, _stunT: 0, e: [0, 0], dashT: 0, dashDir: 0, tl: 0, lim: 0, _cdT: 0, _invT: 0, _lastQ: 0, _eSeq: 0, bot: null }; }
+const V = { ph: 'idle', rnd: 0, epoch: 0, map: 0, t: ROUND_T, el: 0, c: 0, grid: new Uint8Array(N), slots: [], bombs: [], flames: [], pus: [], tiles: mapTiles(0), ld: null, wn: WINS, pz: false, teams: false, revOn: false, win: -1, mwin: -1, sh: 0, diff: 1 };
+function mkSlot(i) { return { i, k: '-', peer: null, nm: '', ch: i, w: 0, al: 0, x: SPAWNS[i][0], y: SPAWNS[i][1], d: 0, m: 0, maxB: 1, range: 2, spd: 0, shield: 0, kick: 0, pierce: 0, inv: 0, cd: 0, glove: 0, stun: 0, away: 0, _stunT: 0, curse: 0, punch: 0, ice: 0, rev: 0, _curT: 0, _shT: 0, _revT: 0, _curX: 0, tsh: 0, e: [0, 0], dashT: 0, dashDir: 0, tl: 0, lim: 0, _cdT: 0, _invT: 0, _lastQ: 0, _eSeq: 0, bot: null }; }
 V.slots = [0, 1, 2, 3, 4, 5].map(mkSlot);
 
 function bombAtCell(x, y, except) { for (const b of V.bombs) if (b !== except && !b.fly && Math.round(b.x) === x && Math.round(b.y) === y) return b; return null; }
@@ -74,7 +74,21 @@ function blockedFor(p, x, y, thru) {
   if (!bombAtCell(x, y)) return false;
   return !(Math.round(p.x) === x && Math.round(p.y) === y);
 }
-const speedOf = p => 3.3 + 0.45 * (p.spd || 0);
+const speedOf = p => (3.3 + 0.45 * (p.spd || 0)) * (p.curse === 1 ? 0.5 : p.curse === 2 ? 1.9 : 1);
+const teamOf = i => V.teams ? (i & 1) : i;
+const TEAMCOL = ['#ff4d4d', '#3db8ff'], TEAMNAME = ['Time Vermelho', 'Time Azul'];
+const colOf = i => V.teams ? TEAMCOL[i & 1] : SLOTCOL[i];
+// teleporte: casa livre mais distante (até 3) na direção do olhar, atravessando blocos
+function blinkTarget(x, y, dir) { for (let k = 3; k >= 1; k--) { const tx = x + DX[dir] * k, ty = y + DY[dir] * k; if (inb(tx, ty) && V.grid[idx(tx, ty)] === EMPTY && !bombAtCell(tx, ty)) return [tx, ty]; } return null; }
+// vingança: quem foi eliminado anda pela borda da arena
+function perimStart(p) { const x = clamp(Math.round(p.x), 0, GW - 1), y = clamp(Math.round(p.y), 0, GH - 1), d = [y + 1, GH - y, x + 1, GW - x], m = Math.min(d[0], d[1], d[2], d[3]); if (m === d[0]) { p.x = x; p.y = -1; } else if (m === d[1]) { p.x = x; p.y = GH; } else if (m === d[2]) { p.x = -1; p.y = y; } else { p.x = GW; p.y = y; } p.d = perimDir(p); p.m = 0; }
+function perimDir(p) { return p.y <= -1 ? 0 : p.y >= GH ? 2 : p.x <= -1 ? 3 : 1; }
+function perimMove(p, ix, iy, dt) {
+  const sp = 5.5 * dt, onH = p.y <= -1 || p.y >= GH, onV = p.x <= -1 || p.x >= GW; let mv = 0;
+  if (onH && Math.abs(ix) > 0.3) { const nx = clamp(p.x + Math.sign(ix) * sp, -1, GW); mv = Math.abs(nx - p.x); p.x = nx; p.y = p.y <= -1 ? -1 : GH; }
+  else if (onV && Math.abs(iy) > 0.3) { const ny = clamp(p.y + Math.sign(iy) * sp, -1, GH); mv = Math.abs(ny - p.y); p.y = ny; p.x = p.x <= -1 ? -1 : GW; }
+  p.m = mv > 1e-4 ? 1 : 0; p.d = perimDir(p);
+}
 
 // Move em corredores (estilo clássico), com ajuda automática nas curvas.
 function stepMove(p, dir, dist, thru) {
