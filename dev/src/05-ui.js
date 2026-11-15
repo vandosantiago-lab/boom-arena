@@ -16,7 +16,7 @@ function request(type, cx, cy, dir) {
 function localUpdate(dt) {
   const mi = myIdx(); if (mi < 0) return;
   const s = V.slots[mi], p = rpos(mi);
-  if (V.ph !== 'play' || !s.al || V.pz || s.stun || Net.frozen) { p.m = 0; p.dashT = 0; In.bomb = In.abil = false; return; }
+  if (V.ph !== 'play' || !s.al || V.pz || s.stun || Net.frozen) { p.m = 0; p.dashT = 0; p.pdT = 0; p.tc = 0; In.bomb = In.abil = false; return; }
   if (Game.mode === 'client') p.spd = s.spd;
   let ix = In.x, iy = In.y;
   if (!In.jon) { const k = In.keys; ix = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0); iy = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0); }
@@ -133,15 +133,21 @@ UI.init = function () {
   $('how-list').innerHTML = [0, 1, 2, 3, 4, 5, 6].map(t => `<div class="pu"><img src="${G.icons[t]}" style="background:${PU_BG[t]}" alt=""><span>${['Mais uma bomba ao mesmo tempo', 'Explosão alcança mais longe', 'Você anda mais rápido', 'Aguenta uma explosão', 'Chuta bombas ao encostar nelas', 'Explosão atravessa blocos', 'Aperte bomba de novo em cima dela para arremessar'][t]}</span></div>`).join('');
   // controles
   const jz = $('joyzone'), joy = $('joy'), knob = $('joyk');
-  const R = 44, DEAD = 7, hasTouch = 'ontouchstart' in window;
+  const R = 30, DEAD = 7, hasTouch = 'ontouchstart' in window;
   const jset = (x, y) => { let dx = x - In.ox, dy = y - In.oy; const m = Math.hypot(dx, dy); if (m > R) { In.ox += dx * (1 - R / m); In.oy += dy * (1 - R / m); dx *= R / m; dy *= R / m; joy.style.left = In.ox + 'px'; joy.style.top = In.oy + 'px'; } knob.style.transform = `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`; if (m > DEAD) { In.x = dx / Math.min(m, R); In.y = dy / Math.min(m, R); } else In.x = In.y = 0; };
   const jstart = (id, x, y) => { Au.init(); In.jid = id; In.jon = true; In.ox = x; In.oy = y; In.x = In.y = 0; joy.style.left = x + 'px'; joy.style.top = y + 'px'; joy.classList.add('on'); knob.style.transform = 'translate(-50%,-50%)'; };
   const jend = () => { In.jon = false; In.jid = null; In.x = In.y = 0; joy.classList.remove('on'); joy.style.left = ''; joy.style.top = ''; knob.style.transform = ''; };
   // toque (iPhone e Android): eventos de toque diretos, os mais confiáveis
-  jz.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; if (t) jstart(t.identifier, t.clientX, t.clientY); }, { passive: false });
-  jz.addEventListener('touchmove', e => { e.preventDefault(); if (!In.jon) return; for (const t of e.changedTouches) if (t.identifier === In.jid) jset(t.clientX, t.clientY); }, { passive: false });
+  const held = e => In.jon && [...e.touches].some(t => t.identifier === In.jid);
+  // a 2nd finger in the zone must not steal the stick from a finger that is still down
+  jz.addEventListener('touchstart', e => { e.preventDefault(); if (held(e)) return; const t = e.changedTouches[0]; if (t) jstart(t.identifier, t.clientX, t.clientY); }, { passive: false });
+  // a finger that is still down after jend() (HUD hidden, blur, rotation) takes the stick back as soon as it moves
+  jz.addEventListener('touchmove', e => { e.preventDefault(); if (!In.jon) { const t = e.changedTouches[0]; if (t && !$('controls').classList.contains('hide')) jstart(t.identifier, t.clientX, t.clientY); return; } for (const t of e.changedTouches) if (t.identifier === In.jid) jset(t.clientX, t.clientY); }, { passive: false });
   const tend = e => { if (!In.jon) return; for (const t of e.changedTouches) if (t.identifier === In.jid) jend(); };
   jz.addEventListener('touchend', tend); jz.addEventListener('touchcancel', tend);
+  // safety net: if the stick's finger is no longer on the screen (lost touchend), release it on the next touch event anywhere
+  const sane = e => { if (In.jon && typeof In.jid === 'number' && ![...e.touches].some(t => t.identifier === In.jid)) jend(); };
+  for (const t of ['touchstart', 'touchend', 'touchcancel']) document.addEventListener(t, sane, { capture: true, passive: true });
   // mouse (computador)
   const isT = e => hasTouch && e.pointerType === 'touch';
   jz.addEventListener('pointerdown', e => { if (isT(e)) return; jstart('m' + e.pointerId, e.clientX, e.clientY); try { jz.setPointerCapture(e.pointerId); } catch (x) { } e.preventDefault(); });
@@ -157,7 +163,8 @@ UI.init = function () {
   $('emos').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b) return; emote(+b.dataset.e); show('emos', false); e.preventDefault(); });
   addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; In.keys[e.code] = true; if (e.code === 'Space') { In.bomb = true; e.preventDefault(); } if (e.code === 'KeyE' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') In.abil = true; if (e.code === 'KeyP' || e.code === 'Escape') togglePause(); if (e.code.startsWith('Digit')) { const n = +e.code.slice(5); if (n >= 1 && n <= 4) emote(n - 1); } if (e.code.startsWith('Arrow')) e.preventDefault(); if (!Au.ctx) Au.init(); });
   addEventListener('keyup', e => { In.keys[e.code] = false; });
-  addEventListener('blur', () => { In.keys = {}; });
+  addEventListener('blur', () => { In.keys = {}; jend(); });
+  addEventListener('pagehide', jend); addEventListener('orientationchange', jend);
   document.addEventListener('contextmenu', e => e.preventDefault());
   for (const t of ['touchend', 'click']) document.addEventListener(t, () => Au.init(), { passive: true });
   const m = /^#sala-([a-z0-9]{4})$/i.exec(location.hash || ''); if (m) { $('code').value = m[1].toUpperCase(); show('joinbox', true); }

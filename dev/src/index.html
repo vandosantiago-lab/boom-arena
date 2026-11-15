@@ -64,7 +64,7 @@ input:focus{border-color:#ffb300}
 .modal h3{margin:0 0 6px;font-family:"Russo One",system-ui,sans-serif;font-size:20px}
 .modal p{margin:6px 0;font-size:13.5px;color:#d5dbea}
 .pu{display:flex;align-items:center;gap:10px;font-size:13.5px;margin-top:6px}.pu img{width:30px;height:30px;border-radius:8px;padding:3px;flex:none}
-#hud{position:fixed;inset:0;z-index:10;pointer-events:none}
+#hud{position:fixed;inset:0;z-index:10;pointer-events:none}#hud,#hud *{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 #hud button,#joyzone,#emos{pointer-events:auto}
 #top{position:absolute;left:0;right:0;top:0;height:54px;display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:linear-gradient(rgba(6,8,18,.75),rgba(6,8,18,0))}
 #chips{display:flex;gap:5px}
@@ -109,6 +109,7 @@ input:focus{border-color:#ffb300}
  #joyzone{width:46%}#btns{transform:scale(.9);transform-origin:100% 100%}
  .ch img{aspect-ratio:9/6}
 }
+@media (orientation:portrait){#joyzone{width:calc(100% - 200px)}}
 @media (prefers-reduced-motion:reduce){#banner.pop b,#bt-ab.arm{animation:none}}
 </style>
 </head>

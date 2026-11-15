@@ -103,6 +103,11 @@ function stepMove(p, dir, dist, thru) {
   return { moved: start - dist, hit };
 }
 
+// signed sideways slide needed before the player can step in `dir` from here (null = that lane is closed)
+function turnSlide(p, dir) {
+  const hz = dir === 1 || dir === 3, o = hz ? p.y : p.x, ro = Math.round(o), a = Math.round(hz ? p.x : p.y) + ((dir === 0 || dir === 3) ? 1 : -1);
+  return (hz ? blockedFor(p, a, ro, false) : blockedFor(p, ro, a, false)) ? null : ro - o;
+}
 function cellOf(p) { return idx(clamp(Math.round(p.x), 0, GW - 1), clamp(Math.round(p.y), 0, GH - 1)); }
 
 function updateMover(p, ix, iy, dt) {
@@ -113,7 +118,15 @@ function updateMover(p, ix, iy, dt) {
   } else {
     const ax = Math.abs(ix), ay = Math.abs(iy); let moved = 0;
     if (ax > 0.25 || ay > 0.25) {
-      const hz = ax > ay * 1.25 ? true : ay > ax * 1.25 ? false : (p.d === 1 || p.d === 3);
+      const c = p.m ? p.d : -1, cH = c === 1 || c === 3, hdir = ix > 0 ? 3 : 1, vdir = iy > 0 ? 0 : 2;
+      let hz = ax > ay * 1.25 ? true : ay > ax * 1.25 ? false : (p.d === 1 || p.d === 3);
+      // thumb still includes the direction we are moving in (diagonal-ish): never ping-pong between the two axes
+      if (ax > 0.3 && ay > 0.3 && c >= 0 && (c === hdir || c === vdir)) {
+        const ts = turnSlide(p, cH ? vdir : hdir), back = ts === null ? 9 : Math.max(0, -ts * ((c === 0 || c === 3) ? 1 : -1));
+        if (p.tc > 0) hz = cH;                                                          // just turned: commit for 0.3 cells
+        else if (ax <= ay * 1.25 && ay <= ax * 1.25) hz = ts !== null && Math.abs(ts) <= 0.2 ? !cH : cH; // true diagonal: take the next opening
+        else if (hz !== cH && back > 0.25) hz = cH;                                      // never slide back more than 0.25 to un-turn
+      }
       const d1 = hz ? (ix > 0 ? 3 : 1) : (iy > 0 ? 0 : 2);
       const d2 = hz ? (ay > 0.3 ? (iy > 0 ? 0 : 2) : -1) : (ax > 0.3 ? (ix > 0 ? 3 : 1) : -1);
       let sp = speedOf(p); if (V.tiles.slowAt[cellOf(p)]) sp *= 0.55;
@@ -123,8 +136,9 @@ function updateMover(p, ix, iy, dt) {
       // curva antecipada: se a direção pedida ainda está bloqueada, segue na anterior até a abertura
       if (moved < 1e-4 && !r.hit && !(p.lim > 0) && p.pd >= 0 && p.pd !== d1 && ((p.pd ^ d1) & 1) && p.pdT > 0) { const r3 = stepMove(p, p.pd, dist, false); if (r3.moved > 1e-4) { moved = r3.moved; p.d = p.pd; } }
       else if (moved > 1e-4) { p.pd = p.d; p.pdT = 0.45; }
+      if (moved > 1e-4) { const o = (p.d === 1 || p.d === 3) ? p.y : p.x; if ((c >= 0 && ((p.d ^ c) & 1)) || Math.abs(o - Math.round(o)) > 1e-3) p.tc = 0.3; else if (p.tc > 0) p.tc -= moved; } else p.tc = 0;
       if (p.pdT > 0) p.pdT -= dt;
-    }
+    } else if (p.pdT > 0) p.pdT -= 4 * dt; // stick released: the turn buffer dies in ~0.11 s instead of living forever
     p.m = moved > 1e-4 ? 1 : 0;
   }
   const cd = V.tiles.convAt[cellOf(p)];
