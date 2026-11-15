@@ -16,11 +16,11 @@ const ROUND_T = 120, SHRINK_AT = 60, WINS = 2, FUSE = 2.5;
 const CHARS = [
   { name: 'Kaio', tag: 'Bomba remota', desc: 'Planta uma bomba extra e detona na hora que quiser.', btn: 'REMOTA', col: '#ff7a1a', cd: 4, k: 0 },
   { name: 'Luna', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#12b5a4', cd: 5, k: 1 },
-  { name: 'Zeca', tag: 'Dash de skate', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#7c4dff', cd: 5, k: 2 },
+  { name: 'Zeca', tag: 'Arrancada', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#7c4dff', cd: 5, k: 2 },
   { name: 'Dudu', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5, k: 3 },
   { name: 'Bia', tag: 'Bomba remota', desc: 'Planta uma bomba extra e detona na hora que quiser.', btn: 'REMOTA', col: '#e0409a', cd: 4, k: 0 },
   { name: 'Téo', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#2e9a4a', cd: 5, k: 1 },
-  { name: 'Nina', tag: 'Dash de skate', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#ff5a7a', cd: 5, k: 2 },
+  { name: 'Nina', tag: 'Arrancada', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#ff5a7a', cd: 5, k: 2 },
   { name: 'Rex', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#d12a2a', cd: 3.5, k: 3 },
 ];
 const NCH = CHARS.length;

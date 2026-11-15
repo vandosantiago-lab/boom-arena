@@ -268,7 +268,7 @@ function drawIcon(x, t) {
 function iconCanvas(t, size, bg) { const c = cv(size, size), x = c.getContext('2d'); if (bg) { x.fillStyle = PU_BG[t]; x.beginPath(); if (x.roundRect) x.roundRect(4, 4, size - 8, size - 8, size * 0.2); else x.rect(4, 4, size - 8, size - 8); x.fill(); x.strokeStyle = 'rgba(255,255,255,.9)'; x.lineWidth = size * 0.05; x.stroke(); } x.translate(size / 2, size / 2); x.scale(size / 128, size / 128); drawIcon(x, t); return c; }
 
 // ---------- personagens ----------
-function buildChar(ch, slot) {
+function buildCharProc(ch, slot) {
   geos();
   const D = [{ skin: 0x5c3a26, top: 0xff7a1a, bot: 0x1f2a44, shoe: 0xf4f4f4, hair: 0x120d0a, sc: 1, shorts: 0, st: 0 },
   { skin: 0xf0c6a2, top: 0x12b5a4, bot: 0x20212b, shoe: 0xff5fa2, hair: 0xf2cf63, sc: 0.96, shorts: 0, st: 1 },
@@ -348,8 +348,46 @@ function bakeGroup(root, mat) {
   const G2 = new THREE.BufferGeometry(); G2.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); G2.setAttribute('normal', new THREE.Float32BufferAttribute(Nn, 3)); G2.setAttribute('color', new THREE.Float32BufferAttribute(Cc, 3));
   const m = new THREE.Mesh(G2, mat); m.castShadow = true; root.add(m); return m;
 }
+// ---------- personagens com modelo 3D e animação por esqueleto (KayKit, CC0) ----------
+const MODELS = ['knight', 'mage', 'rogue', 'barbarian', 'skmage', 'skwarrior', 'skrogue', 'skminion'];
+const MD = { ready: false, ver: 0, src: [], h: [], clips: {} };
+async function loadModels() {
+  if (!HOSTED) return;
+  try {
+    const L = new GLTFLoader(), ld = u => new Promise((res, rej) => L.load(u, res, undefined, rej));
+    const all = await Promise.all([ld('models/anims.glb')].concat(MODELS.map(n => ld('models/' + n + '.glb'))));
+    for (const c of all[0].animations) MD.clips[c.name] = c;
+    for (let i = 0; i < MODELS.length; i++) { const sc = all[i + 1].scene; sc.traverse(o => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (o.material) { o.material.roughness = 0.72; o.material.metalness = 0.05; } } }); sc.updateMatrixWorld(true); const bb = new THREE.Box3().setFromObject(sc); MD.src[i] = sc; MD.h[i] = Math.max(0.5, bb.max.y - bb.min.y); }
+    MD.ready = true; MD.ver++; makePortraits(); gfxResize(); UI.renderChars(); UI.sig.lobby = ''; UI.sig.chips = '';
+  } catch (e) { console.warn('modelos 3D indisponíveis, usando bonecos simples', e); }
+}
+function setAnim(c, name, fade, once) {
+  const a = c.acts[name]; if (!a || (c.cur === a && !once)) return;
+  if (once) { a.reset(); a.setLoop(THREE.LoopOnce, 1); a.clampWhenFinished = true; } else { a.setLoop(THREE.LoopRepeat, Infinity); a.clampWhenFinished = false; }
+  a.enabled = true; a.timeScale = 1; a.setEffectiveWeight(1);
+  if (c.cur && c.cur !== a) { if (!once) a.reset(); if (fade > 0) a.crossFadeFrom(c.cur, fade, false); else c.cur.stop(); }
+  a.play(); c.cur = a; c.curName = name;
+}
+function actOnce(c, name, dur) { if (!c || !c.mixer || !c.acts[name] || !c.alive) return; setAnim(c, name, 0.06, true); c.one = dur || Math.min(0.8, c.acts[name].getClip().duration); }
+function buildChar(ch, slot) {
+  if (!MD.ready || !MD.src[ch]) { const c = buildCharProc(ch, slot); c.ver = MD.ver; return c; }
+  geos(); const g = new THREE.Group(), rig = new THREE.Group(); g.add(rig);
+  const m = SkeletonUtils.clone(MD.src[ch]); m.scale.setScalar(1.3 / MD.h[ch]); rig.add(m);
+  const mixer = new THREE.AnimationMixer(m), acts = {}; for (const k in MD.clips) acts[k] = mixer.clipAction(MD.clips[k]);
+  const ring = new THREE.Mesh(GEO.ring, new THREE.MeshBasicMaterial({ color: SLOTCOL[slot], transparent: true, opacity: 0.95, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.025; g.add(ring);
+  const tag = new THREE.Mesh(new THREE.OctahedronGeometry(0.085), new THREE.MeshBasicMaterial({ color: SLOTCOL[slot] })); tag.position.y = 1.56; g.add(tag);
+  const shield = new THREE.Mesh(GEO.sph, new THREE.MeshBasicMaterial({ color: new THREE.Color(0x4fc3ff).multiplyScalar(1.4), transparent: true, opacity: 0.28, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })); shield.scale.setScalar(0.72); shield.position.y = 0.66; shield.visible = false; g.add(shield);
+  const c = { g, rig, ring, tag, shield, ch, mixer, acts, cur: null, curName: '', one: 0, board: null, ph: 0, x: 0, y: 0, rot: 0, alive: false, dead: 0, sc: 1, col: CHARS[ch].col, ver: MD.ver };
+  setAnim(c, 'Idle', 0); mixer.update(0.03); return c;
+}
 function poseBoard(c, dash) { if (!c.board) return; if (dash) { c.board.position.set(0, 0.02, 0); c.board.rotation.set(0, 0, 0); } else { c.board.position.set(0, 0.62, -0.135); c.board.rotation.set(Math.PI / 2 - 0.12, 0, 0); } }
 function animChar(c, st, dt, t) {
+  if (c.mixer) {
+    if (c.tag) { c.tag.rotation.y = t * 3; c.tag.position.y = 1.56 + Math.sin(t * 4 + c.ch) * 0.03; }
+    if (c.one > 0) c.one -= dt;
+    else { const n = st.win ? 'Cheer' : st.stun ? 'Hit_B' : st.dash ? 'Dodge_Forward' : st.moving ? 'Running_A' : 'Idle'; setAnim(c, n, 0.12); if (n === 'Running_A') c.cur.timeScale = 1.25; }
+    c.mixer.update(dt); return;
+  }
   c.ph += dt * (st.moving ? 11 : 2);
   const sw = st.moving && !st.dash ? Math.sin(c.ph) * 0.8 : 0;
   c.legL.rotation.x = sw; c.legR.rotation.x = -sw; c.armL.rotation.x = -sw * 0.8; c.armR.rotation.x = sw * 0.8;
@@ -362,9 +400,9 @@ function animChar(c, st, dt, t) {
 function makePortraits() {
   const ps = new THREE.Scene(), pc = new THREE.PerspectiveCamera(26, 0.9, 0.1, 10);
   ps.background = new THREE.Color(0x1a2033); ps.add(new THREE.HemisphereLight(0xffffff, 0x445066, 1.5)); const d = new THREE.DirectionalLight(0xffffff, 2.6); d.position.set(1.5, 2.5, 3); ps.add(d);
-  pc.position.set(0.35, 0.98, 1.75); pc.lookAt(0, 0.8, 0);
+  if (MD.ready) { pc.position.set(0.5, 1.15, 2.1); pc.lookAt(0, 0.92, 0); } else { pc.position.set(0.35, 0.98, 1.75); pc.lookAt(0, 0.8, 0); }
   ren.setPixelRatio(1); ren.setSize(180, 200, false);
-  for (let i = 0; i < NCH; i++) { const c = buildChar(i, i & 3); c.ring.visible = false; poseBoard(c, false); c.g.rotation.y = 0.35; c.armL.rotation.z = -0.1; ps.add(c.g); ren.render(ps, pc); try { G.portraits[i] = ren.domElement.toDataURL('image/png'); } catch (e) { G.portraits[i] = ''; } ps.remove(c.g); }
+  for (let i = 0; i < NCH; i++) { const c = buildChar(i, i & 3); c.ring.visible = false; if (c.tag) c.tag.visible = false; poseBoard(c, false); c.g.rotation.y = 0.35; if (c.armL) c.armL.rotation.z = -0.1; ps.add(c.g); ren.render(ps, pc); try { G.portraits[i] = ren.domElement.toDataURL('image/png'); } catch (e) { G.portraits[i] = ''; } ps.remove(c.g); }
   for (let t = 0; t < 7; t++) G.icons[t] = iconCanvas(t, 64, false).toDataURL();
 }
 
@@ -423,7 +461,7 @@ function fxExplosion(f) {
   const x = wx(f.x), z = wz(f.y);
   fxLight(x, z, 0xffa040, 110);
   let r = G.rings[0]; for (const q of G.rings) if (q.t > r.t) r = q; r.t = 0; r.m.visible = true; r.m.position.set(x, 0.3, z);
-  G.shake = Math.max(G.shake, 0.26);
+  const near = distToMe(f.x, f.y); G.shake = Math.max(G.shake, near < 4 ? 0.34 : 0.2); if (near < 5) G.punch = Math.max(G.punch || 0, 1 - near / 6);
 }
 function fxDebris(c, col) { const x = wx(c % GW), z = wz((c / GW) | 0); for (let k = 0; k < 8; k++) pSpawn(2, x + rnd(0.3), 0.3 + Math.random() * 0.5, z + rnd(0.3), rnd(3.5), 2.5 + Math.random() * 4, rnd(3.5), 0.9 + Math.random() * 0.5, 0.1 + Math.random() * 0.14, 0.08, col); }
 function fxBurst(x, z, col, n) { for (let k = 0; k < n; k++) pSpawn(0, x, 0.5, z, rnd(2.2), 1 + Math.random() * 2.5, rnd(2.2), 0.5 + Math.random() * 0.3, 0.1, 0.02, col); fxLight(x, z, new THREE.Color(col[0] / 4, col[1] / 4, col[2] / 4), 40); }
@@ -482,7 +520,7 @@ function camUpdate(dt) {
   if (G.fz < 0.999) { const p = rpos(mi >= 0 ? mi : 0), kx = Math.max(0, 1 - G.fz / (G.fitX || 1)), ky = Math.max(0, 1 - G.fz / (G.fitY || 1)); G.fx0 += (wx(p.x) / 6 * 7.55 * kx - G.fx0) * Math.min(1, dt * 6); G.fy0 += (wz(p.y) / 5 * 6.6 * ky - G.fy0) * Math.min(1, dt * 6); tx += G.fx0; tz = tz * G.fz + G.fy0; d *= G.fz; }
   const zt = (V.ph === 'rend' && V.ld && Game.mode !== 'attract' && UI.phT < 2.4) ? 1 : 0; G.zoom += (zt - G.zoom) * Math.min(1, dt * 3);
   if (G.zoom > 0.002 && V.ld) { tx = lerp(tx, wx(V.ld[0]), G.zoom * 0.75); tz = lerp(tz, wz(V.ld[1]) + 0.4, G.zoom * 0.75); d = lerp(d, G.camD * 0.55, G.zoom); }
-  G.shake *= Math.exp(-dt * 7);
+  G.shake *= Math.exp(-dt * 7); G.punch = (G.punch || 0) * Math.exp(-dt * 9); d *= 1 - 0.06 * G.punch;
   cam.position.set(tx + Math.sin(az) * Math.cos(G.elev) * d + rnd(G.shake), Math.sin(G.elev) * d + rnd(G.shake), tz + Math.cos(az) * Math.cos(G.elev) * d + rnd(G.shake * 0.5)); cam.lookAt(tx, 0, tz);
   if (scene.fog) { scene.fog.near = d + 16; scene.fog.far = d + 120; }
 }
@@ -516,7 +554,8 @@ function gfxSync(dt) {
   // bombas
   const seen = G.seen; seen.clear();
   for (const b of V.bombs) {
-    seen.add(b.id); let o = G.bombs.get(b.id); if (!o) { o = mkBombMesh(b); G.bombs.set(b.id, o); Au.play(b.fly ? 'whoosh' : 'place', 0.5); }
+    seen.add(b.id); let o = G.bombs.get(b.id); if (!o) { o = mkBombMesh(b); G.bombs.set(b.id, o); Au.play(b.fly ? 'whoosh' : 'place', 0.5); if (t - G.arenaT > 0.3) actOnce(G.chars[b.o], b.fly ? 'Throw' : b.sl >= 0 ? 'Unarmed_Melee_Attack_Kick' : 'Interact', 0.42); }
+    if (b.fly && !o.fl && t - o.born > 0.1) actOnce(G.chars[b.o], 'Throw', 0.45); o.fl = !!b.fly;
     if (!b.fly) { const mv = Math.abs(b.x - o.x) + Math.abs(b.y - o.y) > 0.25; if (mv && !o.mv) Au.play('kick'); o.mv = mv; }
     let y = 0;
     if (b.fly) { const p = clamp(b.fly.p, 0, 1); o.x = lerp(b.fly.fx, b.x, p); o.y = lerp(b.fly.fy, b.y, p); y = Math.sin(p * Math.PI) * 2.4; o.g.rotation.x = p * 9; }
@@ -573,10 +612,10 @@ function syncPlayers(dt, fdt, t) {
   for (let i = 0; i < NS; i++) {
     const s = V.slots[i], lab = UI.labs[i]; let c = G.chars[i];
     if (s.k === '-') { if (c) c.g.visible = false; if (lab) lab.style.display = 'none'; continue; }
-    if (!c || c.ch !== s.ch) { if (c) scene.remove(c.g); c = G.chars[i] = buildChar(s.ch, i); scene.add(c.g); c.g.visible = false; }
+    if (!c || c.ch !== s.ch || c.ver !== MD.ver) { if (c) scene.remove(c.g); c = G.chars[i] = buildChar(s.ch, i); scene.add(c.g); c.g.visible = false; }
     const p = rpos(i);
-    if (s.al && !c.alive) { c.alive = true; c.dead = 0; c.g.visible = true; c.x = p.x; c.y = p.y; c.rig.rotation.set(0, 0, 0); c.rig.scale.setScalar(c.sc); c.rig.position.y = 0; c.ring.visible = true; }
-    if (!s.al && c.alive) { c.alive = false; c.dead = 1.2; c.shield.visible = false; const X = wx(c.x), Z = wz(c.y); for (let k = 0; k < 10; k++) pSpawn(1, X + rnd(0.2), 0.5, Z + rnd(0.2), rnd(1.2), 1 + Math.random(), rnd(1.2), 1.1, 0.25, 0.6, 0.1); fxBurst(X, Z, [4, 1.2, 0.4], 14); onDeath(i); }
+    if (s.al && !c.alive) { c.alive = true; c.dead = 0; c.g.visible = true; c.x = p.x; c.y = p.y; c.rig.rotation.set(0, 0, 0); c.rig.scale.setScalar(c.sc); c.rig.position.y = 0; c.ring.visible = true; if (c.mixer) { c.mixer.stopAllAction(); c.cur = null; c.one = 0; setAnim(c, 'Idle', 0); if (c.tag) c.tag.visible = true; } }
+    if (!s.al && c.alive) { if (c.mixer) { c.one = 0; setAnim(c, 'Death_A', 0.05, true); if (c.tag) c.tag.visible = false; } c.alive = false; c.dead = c.mixer ? 1.8 : 1.2; c.shield.visible = false; const X = wx(c.x), Z = wz(c.y); for (let k = 0; k < 10; k++) pSpawn(1, X + rnd(0.2), 0.5, Z + rnd(0.2), rnd(1.2), 1 + Math.random(), rnd(1.2), 1.1, 0.25, 0.6, 0.1); fxBurst(X, Z, [4, 1.2, 0.4], 14); onDeath(i); }
     if (c.alive) {
       const dx = p.x - c.x, dy = p.y - c.y;
       if (Math.abs(dx) + Math.abs(dy) > 1.6) { fxBurst(wx(c.x), wz(c.y), [0.6, 3, 4], 10); c.x = p.x; c.y = p.y; fxBurst(wx(c.x), wz(c.y), [0.6, 3, 4], 10); if (i === me) Au.play('tele', 0.6); }
@@ -586,11 +625,12 @@ function syncPlayers(dt, fdt, t) {
       const win = (V.ph === 'rend' || V.ph === 'mend') && V.win === i;
       const tr = win ? 0 : [0, -Math.PI / 2, Math.PI, Math.PI / 2][p.d & 3]; let dr = tr - c.rot; while (dr > Math.PI) dr -= Math.PI * 2; while (dr < -Math.PI) dr += Math.PI * 2; c.rot += dr * Math.min(1, dt * 16); if (s.stun) { c.rot += dt * 16; if (Math.random() < 0.3) pSpawn(0, wx(c.x) + Math.cos(t * 9) * 0.3, 1.5, wz(c.y) + Math.sin(t * 9) * 0.3, 0, 0.2, 0, 0.35, 0.09, 0.02, [4, 3.4, 0.6]); } c.g.rotation.y = c.rot;
       const dash = p.dash ? 1 : 0;
-      animChar(c, { moving: p.m && V.ph === 'play', dash, win }, fdt, t);
+      animChar(c, { moving: p.m && V.ph === 'play', dash, win, stun: s.stun }, fdt, t);
       if (dash && Math.random() < 0.7) pSpawn(0, wx(c.x) + rnd(0.15), 0.25, wz(c.y) + rnd(0.15), 0, 0.4, 0, 0.3, 0.16, 0.02, [1.6, 0.6, 4]);
-      if (c.hadShield && !s.shield) Au.play('clang'); c.hadShield = !!s.shield; c.shield.visible = !!s.shield; if (s.shield) c.shield.scale.setScalar(0.62 + Math.sin(t * 5) * 0.02);
+      if (c.hadShield && !s.shield) { Au.play('clang'); actOnce(c, 'Block', 0.45); } c.hadShield = !!s.shield; c.shield.visible = !!s.shield; if (s.shield) c.shield.scale.setScalar(0.62 + Math.sin(t * 5) * 0.02);
       c.rig.visible = !(s.inv && !dash && Math.sin(t * 40) > 0.2);
       c.ring.scale.setScalar(i === me ? 1.12 + Math.sin(t * 5) * 0.08 : 1);
+    } else if (c.dead > 0 && c.mixer) { c.dead -= fdt; c.mixer.update(fdt); const f = clamp(1 - c.dead / 1.8, 0, 1); c.rig.scale.setScalar(f > 0.82 ? Math.max(0.01, 1 - (f - 0.82) / 0.18) : 1); c.ring.visible = false; if (c.dead <= 0) c.g.visible = false;
     } else if (c.dead > 0) { c.dead -= fdt; const f = clamp(1 - c.dead / 1.2, 0, 1); c.rig.rotation.x = -f * 1.5; c.rig.position.y = -f * 0.25; c.rig.scale.setScalar(c.sc * (1 - f * f)); c.ring.visible = false; if (c.dead <= 0) c.g.visible = false; }
     // rótulos
     if (s.e[0] !== G.eSeen[i]) { if (s.e[0] > G.eSeen[i]) { G.emoT[i] = 2.4; lab.textContent = EMOTES[s.e[1] & 3]; lab.className = 'lab emo'; } G.eSeen[i] = s.e[0]; }

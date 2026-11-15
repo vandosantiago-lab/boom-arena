@@ -85,7 +85,7 @@ function lobbyBuild() {
 function distToMe(x, y) { const i = myIdx(); if (i < 0) return 99; const p = rpos(i); return Math.abs(p.x - x) + Math.abs(p.y - y); }
 function onBoom(f) { const d = distToMe(f.x, f.y); Au.play('boom', clamp(1.1 - d * 0.06, 0.35, 1)); if (d < 5 && Game.mode !== 'attract') Au.buzz(d < 2.5 ? 70 : 35); }
 function onPickup(i, type) { if (i === myIdx()) { Au.play('pick'); toast(PU_NAMES[type], 900); Au.buzz(20); } }
-function onDeath(i) { Au.play('die'); if (i === myIdx()) Au.buzz([120, 60, 180]); }
+function onDeath(i) { G.hs = 0.16; G.shake = Math.max(G.shake, 0.4); const fl = $('flash'); if (fl) { fl.classList.remove('on'); void fl.offsetWidth; fl.classList.add('on'); } Au.play('die'); if (i === myIdx()) Au.buzz([120, 60, 180]); }
 function emote(id) { Au.play('emo'); const i = myIdx(); if (i < 0) return; if (isSim()) { const s = V.slots[i]; s.e = [s.e[0] + 1, id]; } else { Net.em = [Net.em[0] + 1, id]; const s = V.slots[i]; G.eSeen[i] = s.e[0]; G.emoT[i] = 2.4; UI.labs[i].textContent = EMOTES[id]; UI.labs[i].className = 'lab emo'; } }
 
 function togglePause() { const i = myIdx(); if (i < 0) return; if (isSim()) simTogglePause(i); else { Net.q.push([++Net.qseq, 'z', 0, 0, 0]); if (Net.q.length > 5) Net.q.shift(); } }
@@ -290,7 +290,7 @@ function frame(now) {
   const real = Math.min(0.14, Math.max(0.001, (now - lastT) / 1000)); lastT = now; G.time += real;
   try {
     const t0 = performance.now(), n = Math.ceil(real / 0.035); for (let i = 0; i < n; i++) step(real / n);
-    G.fx = (V.ph === 'rend' && UI.phT < 1.5 && Game.mode !== 'attract') ? 0.3 : 1;
+    G.fx = (V.ph === 'rend' && UI.phT < 1.5 && Game.mode !== 'attract') ? 0.3 : 1; if (G.hs > 0) { G.hs -= real; G.fx = Math.min(G.fx, 0.12); }
     const t1 = performance.now(); gfxSync(real); camUpdate(real); autoQuality(real); const t2 = performance.now(); gfxRender();
     const pf = G.prof; pf[0] += t1 - t0; pf[1] += t2 - t1; pf[2] += performance.now() - t2; pf[3]++;
   } catch (e) { if (!window.__boomErr) { window.__boomErr = String(e && e.stack || e); console.error(e); } }
@@ -299,7 +299,7 @@ const BUILD = '/*__BUILD__*/';
 // versão web: confere se há versão mais nova publicada (apps salvos na tela inicial guardam cópia antiga)
 if (HOSTED) { try { fetch('version.txt?t=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(v => { v = (v || '').trim(); if (v && v !== BUILD && !location.search.includes('v=' + v)) location.replace(location.pathname + '?v=' + v + location.hash); }).catch(() => { }); } catch (e) { } }
 try {
-  gfxInit(); UI.init(); startAttract(); netInit();
+  gfxInit(); UI.init(); startAttract(); netInit(); loadModels();
   { const el = $('ver'); if (el) el.textContent = 'versão ' + BUILD; }
   $('c').addEventListener('webglcontextlost', e => { e.preventDefault(); try { localStorage.setItem('boom.q', '0'); } catch (x) { } $('loaderr').classList.remove('hide'); $('loaderr').firstElementChild.innerHTML = '<h2>O vídeo do aparelho foi reiniciado</h2><p>Abra a página de novo para continuar. Os gráficos voltarão no modo leve.</p>'; });
   window.__boomReady = true; window.__boom = { V, G, Game, Net, Sim, In, UI };

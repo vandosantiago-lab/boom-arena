@@ -101,6 +101,7 @@ input:focus{border-color:#ffb300}
 .lab{position:fixed;left:0;top:0;z-index:5;pointer-events:none;white-space:nowrap;font-weight:900}
 .lab.emo{font-size:30px;filter:drop-shadow(0 2px 4px #000)}
 .lab.you{font-size:11px;background:rgba(14,17,30,.85);padding:3px 8px;border-radius:999px;border:1.5px solid currentColor}
+#flash{position:fixed;inset:0;z-index:8;pointer-events:none;background:#fff;opacity:0}#flash.on{animation:fl .28s ease-out}@keyframes fl{0%{opacity:.55}100%{opacity:0}}
 #toast{position:fixed;left:50%;top:74px;transform:translate(-50%,-12px);background:rgba(14,17,30,.92);border:1px solid rgba(255,255,255,.18);padding:9px 16px;border-radius:999px;font-size:13.5px;font-weight:600;opacity:0;transition:.2s;z-index:60;pointer-events:none;max-width:92%;text-align:center}
 #toast.on{opacity:1;transform:translate(-50%,0)}
 #loaderr{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;background:#0a0d18;z-index:99}
@@ -137,6 +138,7 @@ input:focus{border-color:#ffb300}
   </div>
   <div id="spec" class="hide"></div>
 </div>
+<div id="flash"></div>
 <div id="banner" class="hide"></div>
 <div id="recon" class="hide"><div class="panel"><h3>Reconectando…</h3><p>A conexão com o anfitrião caiu ou ele saiu do navegador. A partida continua assim que ele voltar.</p></div></div>
 <div id="pause" class="hide"><div class="panel"><h3>JOGO PAUSADO</h3><p id="pz-who"></p><button id="b-resume" class="btn pri">Continuar</button></div></div>
@@ -189,6 +191,7 @@ input:focus{border-color:#ffb300}
   <p><b>Itens</b> aparecem ao destruir blocos:</p>
   <div id="how-list"></div>
   <p><b>Mapas:</b> o Clássico é o campo verde tradicional; na Praia e no Deserto há areia fofa que deixa lento; no Jardim, túneis que teleportam; no Castelo, espinhos que sobem do chão. No último minuto a arena começa a fechar.</p><p><b>Bomba na cabeça:</b> quem leva uma bomba arremessada em cima fica tonto por um instante.</p>
+  <p style="font-size:11.5px;color:#8f99b3">Personagens 3D: KayKit, de Kay Lousberg (licença CC0).</p>
   <button id="b-howx" class="btn pri">Entendi</button>
 </div></div>
 

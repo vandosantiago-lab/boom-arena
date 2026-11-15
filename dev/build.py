@@ -8,6 +8,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import qrcode from 'qrcode-generator';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 """
 import subprocess
 os.makedirs(os.path.join(root, 'dist', 'web'), exist_ok=True)
@@ -26,3 +28,7 @@ for name, hosted in (('art', False), ('web', True)):
     out = os.path.join(root, 'dist', 'web', 'index.html') if hosted else os.path.join(root, 'dist', 'index.html')
     open(out, 'w', encoding='utf-8').write(tpl.replace('/*__JS__*/', bundle))
     print('built', name, os.path.getsize(out), 'bytes')
+
+import shutil
+if os.path.isdir(os.path.join(root, 'static')):
+    shutil.copytree(os.path.join(root, 'static'), os.path.join(root, 'dist', 'web'), dirs_exist_ok=True)
