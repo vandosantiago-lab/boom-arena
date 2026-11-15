@@ -1,5 +1,5 @@
 // ===================== JOGO, ENTRADA E INTERFACE =====================
-const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4, time: 120, wins: 2 }, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
+const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4, time: 120, wins: 2, shuf: 0 }, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
 const In = { x: 0, y: 0, bomb: false, abil: false, keys: {}, jid: null, jon: false, ox: 0, oy: 0, jx: 0, jy: 0 };
 const UI = { ph: '', ep: -1, phT: 0, c: -1, labs: [], sig: {}, bannerT: 0, toastT: 0, cdWas: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -16,7 +16,7 @@ function request(type, cx, cy, dir) {
 function localUpdate(dt) {
   const mi = myIdx(); if (mi < 0) return;
   const s = V.slots[mi], p = rpos(mi);
-  if (V.ph !== 'play' || !s.al) { p.m = 0; p.dashT = 0; In.bomb = In.abil = false; return; }
+  if (V.ph !== 'play' || !s.al || V.pz || s.stun || Net.frozen) { p.m = 0; p.dashT = 0; In.bomb = In.abil = false; return; }
   if (Game.mode === 'client') p.spd = s.spd;
   let ix = In.x, iy = In.y;
   if (!In.jon) { const k = In.keys; ix = (k.ArrowRight || k.KeyD ? 1 : 0) - (k.ArrowLeft || k.KeyA ? 1 : 0); iy = (k.ArrowDown || k.KeyS ? 1 : 0) - (k.ArrowUp || k.KeyW ? 1 : 0); }
@@ -45,7 +45,7 @@ async function createRoom() {
   const ch = await openChan(code, true); busy(false);
   if (!ch) return toast('Não foi possível criar a sala agora. Confira a internet e tente de novo.');
   Net.chan = ch; Net.code = code; Net.jt = Date.now(); Net.n = 0; Net.sendT = 0;
-  ch.presence({ v: 1, host: 1, nm: Game.name, ch: Game.ch, jt: Net.jt });
+  ch.presence({ v: 1, host: 1, nm: Game.name, ch: Game.ch, jt: Net.jt, pid: Net.gid });
   Game.mode = 'host'; clearWorld(); V.ph = 'lobby';
 }
 async function joinRoom(code) {
@@ -56,7 +56,7 @@ async function joinRoom(code) {
   const ch = await openChan(code, false);
   if (!ch) { busy(false); return toast(Net.lastErr === 'peer-unavailable' ? 'Sala não encontrada. Confira o código.' : 'Não foi possível conectar agora. Confira a internet e tente de novo.'); }
   Net.jt = Date.now(); Net.ackEp = -1; Net.em = [0, 0]; Net.q = [];
-  ch.presence({ v: 1, nm: Game.name, ch: Game.ch, jt: Net.jt, r: -1 });
+  ch.presence({ v: 1, nm: Game.name, ch: Game.ch, jt: Net.jt, r: -1, pid: Net.gid });
   let ok = false;
   for (let i = 0; i < 22 && !ok; i++) { await sleep(200); for (const p of ch.peers()) if (!(p.isMe && p.sameTab) && p.presence && p.presence.host && p.presence.g) ok = true; }
   busy(false);
@@ -65,14 +65,14 @@ async function joinRoom(code) {
 }
 function startMatch() {
   if (V.slots.filter(s => s.k !== '-').length < 2) return toast('É preciso pelo menos 2 participantes.');
-  for (const s of V.slots) { s._ack = -1; s._gone = 0; }
-  simSetupMatch(Game.opt.map, Math.max(0, Game.opt.bots - 1), Game.opt.time, Game.opt.wins);
+  for (const s of V.slots) { s._ack = -1; s.away = 0; }
+  simSetupMatch(Game.opt.map, Math.max(0, Game.opt.bots - 1), Game.opt.time, Game.opt.wins, Game.opt.shuf);
 }
 function lobbyBuild() {
-  const hs = [{ peer: Net.myPeer || 'H', nm: Game.name, ch: Game.ch, jt: -1 }];
-  if (Game.mode === 'host') { findSelf(); hs[0].peer = Net.myPeer || 'H'; for (const p of Net.chan.peers()) { if (p.isMe && p.sameTab) continue; const pr = p.presence; if (!pr || pr.v !== 1 || pr.host) continue; hs.push({ peer: p.peer, nm: cleanName(pr.nm), ch: clamp(pr.ch | 0, 0, NCH - 1), jt: +pr.jt || 0 }); } hs.sort((a, b) => a.jt - b.jt); }
-  const size = clamp(Game.opt.size | 0, 2, 4), used = hs.slice(0, size).map(h => h.ch), free = CHARS.map((c, i) => i).filter(c => !used.includes(c)); let fi = 0;
-  for (let i = 0; i < 4; i++) {
+  const hs = [{ peer: Net.gid, nm: Game.name, ch: Game.ch, jt: -1 }];
+  if (Game.mode === 'host') { for (const p of Net.chan.peers()) { if (p.isMe && p.sameTab) continue; const pr = p.presence; if (!pr || pr.v !== 1 || pr.host || p.stale) continue; hs.push({ peer: pidOf(p), nm: cleanName(pr.nm), ch: clamp(pr.ch | 0, 0, NCH - 1), jt: +pr.jt || 0 }); } hs.sort((a, b) => a.jt - b.jt); }
+  const size = clamp(Game.opt.size | 0, 2, NS), used = hs.slice(0, size).map(h => h.ch), free = CHARS.map((c, i) => i).filter(c => !used.includes(c)); let fi = 0;
+  for (let i = 0; i < NS; i++) {
     const s = V.slots[i], h = i < size ? hs[i] : null;
     if (h) { s.k = 'h'; s.peer = h.peer; s.nm = h.nm; s.ch = h.ch; }
     else if (i < size && Game.opt.bots > 0) { s.k = 'b'; s.peer = null; s.ch = free.length ? free[fi++ % free.length] : i; s.nm = 'Bot ' + CHARS[s.ch].name; }
@@ -87,6 +87,8 @@ function onBoom(f) { const d = distToMe(f.x, f.y); Au.play('boom', clamp(1.1 - d
 function onPickup(i, type) { if (i === myIdx()) { Au.play('pick'); toast(PU_NAMES[type], 900); Au.buzz(20); } }
 function onDeath(i) { Au.play('die'); if (i === myIdx()) Au.buzz([120, 60, 180]); }
 function emote(id) { Au.play('emo'); const i = myIdx(); if (i < 0) return; if (isSim()) { const s = V.slots[i]; s.e = [s.e[0] + 1, id]; } else { Net.em = [Net.em[0] + 1, id]; const s = V.slots[i]; G.eSeen[i] = s.e[0]; G.emoT[i] = 2.4; UI.labs[i].textContent = EMOTES[id]; UI.labs[i].className = 'lab emo'; } }
+
+function togglePause() { const i = myIdx(); if (i < 0) return; if (isSim()) simTogglePause(i); else { Net.q.push([++Net.qseq, 'z', 0, 0, 0]); if (Net.q.length > 5) Net.q.shift(); } }
 
 // ---------- tela cheia ----------
 function toggleFull() {
@@ -108,7 +110,7 @@ function busy(on) { for (const id of ['b-solo', 'b-create', 'b-join', 'b-go']) $
 function avatar(ch, col, cls = '') { const src = G.portraits[ch]; return `<span class="av ${cls}" style="border-color:${col};background:${CHARS[ch].col}">${src ? `<img src="${src}" alt="">` : esc(CHARS[ch].name[0])}</span>`; }
 
 UI.init = function () {
-  const L = $('labels'); for (let i = 0; i < 4; i++) { const d = document.createElement('div'); d.className = 'lab'; d.style.display = 'none'; d.style.color = SLOTCOL[i]; L.appendChild(d); UI.labs.push(d); }
+  const L = $('labels'); for (let i = 0; i < NS; i++) { const d = document.createElement('div'); d.className = 'lab'; d.style.display = 'none'; d.style.color = SLOTCOL[i]; L.appendChild(d); UI.labs.push(d); }
   try { Game.name = cleanName(localStorage.getItem('boom.nm') || 'Jogador'); Game.ch = clamp(parseInt(localStorage.getItem('boom.ch')) || 0, 0, NCH - 1); Au.on = localStorage.getItem('boom.snd') !== '0'; Au.vib = localStorage.getItem('boom.vib') !== '0'; Mu.on = localStorage.getItem('boom.mus') !== '0'; Game.cam = clamp(parseInt(localStorage.getItem('boom.cam')) || 0, 0, 2); } catch (e) { }
   $('nm').value = Game.name === 'Jogador' ? '' : Game.name;
   $('nm').addEventListener('input', () => { Game.name = cleanName($('nm').value); try { localStorage.setItem('boom.nm', Game.name); } catch (e) { } });
@@ -123,11 +125,12 @@ UI.init = function () {
   tap('b-how', () => show('how', true)); tap('b-howx', () => show('how', false));
   tap('b-start', () => startMatch());
   tap('b-leave', () => goHome());
+  tap('b-pause', () => togglePause()); tap('b-resume', () => togglePause());
   tap('b-set', () => { UI.renderSettings(); show('settings', true); });
   tap('b-again', () => { if (isSim()) { clearWorld(); V.ph = 'lobby'; } });
   tap('b-exit', () => goHome());
   $('bt-bomb').innerHTML = `<img src="${G.icons[0]}" alt="">`;
-  $('how-list').innerHTML = [0, 1, 2, 3, 4, 5].map(t => `<div class="pu"><img src="${G.icons[t]}" style="background:${PU_BG[t]}" alt=""><span>${['Mais uma bomba ao mesmo tempo', 'Explosão alcança mais longe', 'Você anda mais rápido', 'Aguenta uma explosão', 'Chuta bombas ao encostar nelas', 'Explosão atravessa blocos'][t]}</span></div>`).join('');
+  $('how-list').innerHTML = [0, 1, 2, 3, 4, 5, 6].map(t => `<div class="pu"><img src="${G.icons[t]}" style="background:${PU_BG[t]}" alt=""><span>${['Mais uma bomba ao mesmo tempo', 'Explosão alcança mais longe', 'Você anda mais rápido', 'Aguenta uma explosão', 'Chuta bombas ao encostar nelas', 'Explosão atravessa blocos', 'Aperte bomba de novo em cima dela para arremessar'][t]}</span></div>`).join('');
   // controles
   const jz = $('joyzone'), joy = $('joy'), knob = $('joyk');
   const R = 44, DEAD = 7, hasTouch = 'ontouchstart' in window;
@@ -152,7 +155,7 @@ UI.init = function () {
   press('bt-emo', () => show('emos', $('emos').classList.contains('hide')));
   $('emos').innerHTML = EMOTES.map((e, i) => `<button data-e="${i}">${e}</button>`).join('');
   $('emos').addEventListener('pointerdown', e => { const b = e.target.closest('button'); if (!b) return; emote(+b.dataset.e); show('emos', false); e.preventDefault(); });
-  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; In.keys[e.code] = true; if (e.code === 'Space') { In.bomb = true; e.preventDefault(); } if (e.code === 'KeyE' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') In.abil = true; if (e.code.startsWith('Digit')) { const n = +e.code.slice(5); if (n >= 1 && n <= 4) emote(n - 1); } if (e.code.startsWith('Arrow')) e.preventDefault(); if (!Au.ctx) Au.init(); });
+  addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; In.keys[e.code] = true; if (e.code === 'Space') { In.bomb = true; e.preventDefault(); } if (e.code === 'KeyE' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') In.abil = true; if (e.code === 'KeyP' || e.code === 'Escape') togglePause(); if (e.code.startsWith('Digit')) { const n = +e.code.slice(5); if (n >= 1 && n <= 4) emote(n - 1); } if (e.code.startsWith('Arrow')) e.preventDefault(); if (!Au.ctx) Au.init(); });
   addEventListener('keyup', e => { In.keys[e.code] = false; });
   addEventListener('blur', () => { In.keys = {}; });
   document.addEventListener('contextmenu', e => e.preventDefault());
@@ -180,15 +183,16 @@ UI.renderSettings = function () {
   }
 };
 UI.renderLobby = function () {
-  const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, Game.opt.wins] : (Net.opt || [-1, 0, 4, 120, 2]), size = clamp(opt[2] | 0 || 4, 2, 4);
+  const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, Game.opt.wins, Game.opt.shuf] : (Net.opt || [-1, 0, 4, 120, 2, 0]), size = clamp(opt[2] | 0 || 4, 2, NS);
   const sig = JSON.stringify([Game.mode, Net.code, mi, opt, Game.ch, V.slots.map(s => [s.k, s.nm, s.ch, s.peer])]); if (sig === UI.sig.lobby) return; UI.sig.lobby = sig;
   $('lb-head').innerHTML = online ? `<div class="code"><small>CÓDIGO DA SALA</small><b>${esc(Net.code)}</b><button class="link" id="b-copy">Copiar código</button></div><canvas id="qr" width="132" height="132" class="hide"></canvas>` : `<div class="code"><small>MODO</small><b class="solo">Solo</b></div>`;
-  $('lb-hint').textContent = online ? (HOSTED ? 'Os outros apontam a câmera do celular para o QR, ou abrem este mesmo link, tocam em "Entrar em sala" e digitam o código.' : 'Os outros jogadores abrem este mesmo jogo, tocam em "Entrar em sala" e digitam o código.') : 'Você contra três bots. Escolha o mapa e a dificuldade.';
+  $('lb-hint').textContent = online ? (HOSTED ? 'Os outros apontam a câmera do celular para o QR, ou abrem este mesmo link, tocam em "Entrar em sala" e digitam o código.' : 'Os outros jogadores abrem este mesmo jogo, tocam em "Entrar em sala" e digitam o código.') : 'Você contra os bots. Escolha o mapa e a dificuldade.';
   $('lb-slots').innerHTML = V.slots.slice(0, size).map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${SLOTCOL[i]}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${SLOTCOL[i]}"></span>${avatar(s.ch, SLOTCOL[i])}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i></div>${i === mi ? '<u>Você</u>' : s.k === 'b' ? '<u>Bot</u>' : i === 0 ? '<u>Anfitrião</u>' : ''}</div>`).join('');
   const chips = (key, names, cur, first) => names.map((n, i) => `<button class="chip${i + first === cur ? ' sel' : ''}" data-k="${key}" data-v="${i + first}" ${host ? '' : 'disabled'}>${n}</button>`).join('');
   const vchips = (key, list, cur) => list.map(q => `<button class="chip${q[0] === cur ? ' sel' : ''}" data-k="${key}" data-v="${q[0]}" ${host ? '' : 'disabled'}>${q[1]}</button>`).join('');
   $('lb-opts').innerHTML = `<div class="srow"><span>Seu personagem · ${CHARS[Game.ch].name} · ${CHARS[Game.ch].tag}</span><div class="chips avs">${CHARS.map((c, i) => `<button class="chip av-chip${i === Game.ch ? ' sel' : ''}" data-k="ch" data-v="${i}">${avatar(i, i === Game.ch ? '#fff' : 'transparent', 'sm')}</button>`).join('')}</div></div>
-   <div class="srow"><span>Jogadores</span><div class="chips seg">${chips('size', ['2', '3', '4'], size, 2)}</div></div>
+   <div class="srow"><span>Jogadores</span><div class="chips seg">${chips('size', ['2', '3', '4', '5', '6'], size, 2)}</div></div>
+   <div class="srow"><span>Posição inicial</span><div class="chips seg">${vchips('shuf', [[0, 'Fixa'], [1, 'Embaralhada a cada rodada']], opt[5] | 0)}</div></div>
    <div class="srow"><span>Tempo de cada rodada</span><div class="chips seg">${vchips('time', [[120, '2 min'], [180, '3 min'], [300, '5 min'], [480, '8 min']], opt[3] || 120)}</div></div>
    <div class="srow"><span>Rodadas · vence quem ganhar</span><div class="chips seg">${vchips('wins', [[1, '1'], [2, '2'], [3, '3'], [5, '5']], opt[4] || 2)}</div></div>
    <div class="srow"><span>Mapa</span><div class="chips">${chips('map', ['Sorteio', ...MAPS], opt[0], -1)}</div></div>
@@ -227,10 +231,11 @@ UI.onPhase = function () {
 UI.tick = function (dt) {
   UI.phT += dt;
   if (V.ph !== UI.ph || V.epoch !== UI.ep || Game.mode !== UI.mode) { UI.ph = V.ph; UI.ep = V.epoch; UI.mode = Game.mode; UI.phT = 0; UI.onPhase(); }
-  if (Game.mode !== 'attract' && (V.ph === 'count' || V.ph === 'play') && Mu.on && Au.on && !document.hidden) Mu.start(); else Mu.stop();
+  if (Game.mode !== 'attract' && (V.ph === 'count' || V.ph === 'play') && Mu.on && Au.on && !document.hidden && !V.pz) Mu.start(); else Mu.stop();
   if (Game.mode === 'attract') return;
   if (V.ph === 'lobby') return UI.renderLobby();
   if (V.ph === 'count' && V.c !== UI.c) { UI.c = V.c; banner(String(V.c), 950, 'Rodada ' + V.rnd + ' · ' + MAPS[V.map]); Au.play('beep'); }
+  { const pz = V.pz && G.inGame; if (pz !== UI.pzWas) { UI.pzWas = pz; show('pause', pz); if (pz) { const w = V.slots[V.pzBy | 0]; $('pz-who').textContent = w && w.k === 'h' ? (V.pzBy === myIdx() ? 'Você pausou a partida.' : w.nm + ' pausou a partida.') : ''; } } }
   if (!G.inGame) return;
   const hurry = V.ph === 'play' && V.t <= SHRINK_AT; if (hurry && !UI.hurry) { banner('DEPRESSA!', 1400, 'A arena está fechando'); Au.play('alarm'); } UI.hurry = hurry;
   if (V.ph === 'play' && V.t <= 10) { const sec = Math.ceil(V.t); if (sec !== UI.lastSec) { UI.lastSec = sec; Au.play('tick'); } }
@@ -238,13 +243,13 @@ UI.tick = function (dt) {
   const tt = Math.ceil(V.t), ts = Math.floor(tt / 60) + ':' + String(tt % 60).padStart(2, '0');
   if (ts !== UI.sig.tm) { UI.sig.tm = ts; $('tm').textContent = ts; $('clock').classList.toggle('hot', V.t <= SHRINK_AT); $('rd').textContent = V.t <= SHRINK_AT ? 'A arena está fechando!' : 'Rodada ' + V.rnd; }
   const cs = V.wn + JSON.stringify(V.slots.map(q => [q.k, q.ch, q.w, q.al, q.nm]));
-  if (cs !== UI.sig.chips) { UI.sig.chips = cs; $('chips').innerHTML = V.slots.map((q, i) => q.k === '-' ? '' : `<div class="pchip${q.al ? '' : ' dead'}${i === mi ? ' me' : ''}">${avatar(q.ch, SLOTCOL[i], 'sm')}<span>${V.wn > 3 ? q.w + '/' + V.wn : '●'.repeat(q.w) + '○'.repeat(Math.max(0, V.wn - q.w))}</span></div>`).join(''); }
+  if (cs !== UI.sig.chips) { UI.sig.chips = cs; $('chips').classList.toggle('many', V.slots.filter(q => q.k !== '-').length > 4); $('chips').innerHTML = V.slots.map((q, i) => q.k === '-' ? '' : `<div class="pchip${q.al ? '' : ' dead'}${i === mi ? ' me' : ''}">${avatar(q.ch, SLOTCOL[i], 'sm')}<span>${V.wn > 3 ? q.w + '/' + V.wn : '●'.repeat(q.w) + '○'.repeat(Math.max(0, V.wn - q.w))}</span></div>`).join(''); }
   const spec = !s || !s.al;
   if (spec !== UI.specWas) { UI.specWas = spec; fitCamera(); }
   show('controls', !spec); show('spec', spec && V.ph === 'play'); if (spec) { if (In.jon) UI.jend(); $('spec').textContent = s ? 'Você foi eliminado — assistindo ao resto da rodada' : 'Assistindo — você entra na próxima partida'; }
   if (s) {
-    const st = [s.maxB, s.range, s.spd, s.shield, s.kick || CHARS[s.ch].k === 3 ? 1 : 0, s.pierce].join();
-    if (st !== UI.sig.stats) { UI.sig.stats = st; const it = (t, v) => `<span><img src="${G.icons[t]}" alt="">${v}</span>`; $('stats').innerHTML = it(0, s.maxB) + it(1, s.range) + it(2, s.spd) + (s.shield ? it(3, '') : '') + (s.kick || CHARS[s.ch].k === 3 ? it(4, '') : '') + (s.pierce ? it(5, '') : ''); }
+    const st = [s.maxB, s.range, s.spd, s.shield, s.kick || CHARS[s.ch].k === 3 ? 1 : 0, s.pierce, s.glove].join();
+    if (st !== UI.sig.stats) { UI.sig.stats = st; const it = (t, v) => `<span><img src="${G.icons[t]}" alt="">${v}</span>`; $('stats').innerHTML = it(0, s.maxB) + it(1, s.range) + it(2, s.spd) + (s.shield ? it(3, '') : '') + (s.kick || CHARS[s.ch].k === 3 ? it(4, '') : '') + (s.pierce ? it(5, '') : '') + (s.glove ? it(6, '') : ''); }
     const remote = CHARS[s.ch].k === 0 && V.bombs.some(b => b.o === mi && b.type === 1), label = remote ? 'DETONAR' : CHARS[s.ch].btn;
     if (label !== UI.sig.ab) { UI.sig.ab = label; $('ab-l').textContent = label; $('bt-ab').style.setProperty('--c', CHARS[s.ch].col); $('bt-ab').classList.toggle('arm', remote); }
     const p = clamp(s.cd / CHARS[s.ch].cd, 0, 1); $('bt-ab').style.setProperty('--p', (p * 100).toFixed(0) + '%'); $('bt-ab').classList.toggle('cool', p > 0.01 && !remote);

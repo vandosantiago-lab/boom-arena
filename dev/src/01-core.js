@@ -10,7 +10,7 @@ const GCH = '.#xSb';
 const DX = [0, -1, 0, 1], DY = [1, 0, -1, 0]; // 0 baixo, 1 esquerda, 2 cima, 3 direita
 const idx = (x, y) => y * GW + x;
 const inb = (x, y) => x >= 0 && y >= 0 && x < GW && y < GH;
-const SPAWNS = [[0, 0], [12, 10], [12, 0], [0, 10]];
+const SPAWNS = [[0, 0], [12, 10], [12, 0], [0, 10], [6, 0], [6, 10]], NS = 6;
 const ROUND_T = 120, SHRINK_AT = 60, WINS = 2, FUSE = 2.5;
 
 const CHARS = [
@@ -24,28 +24,19 @@ const CHARS = [
   { name: 'Rex', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#d12a2a', cd: 3.5, k: 3 },
 ];
 const NCH = CHARS.length;
-const SLOTCOL = ['#ff4d4d', '#3db8ff', '#ffd23d', '#5dea8c'];
-const MAPS = ['Cidade', 'Praia', 'Estádio', 'Fábrica', 'Clássico', 'Neve', 'Vulcão', 'Espaço'];
+const SLOTCOL = ['#ff4d4d', '#3db8ff', '#ffd23d', '#5dea8c', '#c77dff', '#ff9f43'];
+const MAPS = ['Clássico', 'Praia', 'Jardim', 'Deserto', 'Castelo'];
 const NMAP = MAPS.length;
-const PU_NAMES = ['+1 bomba', '+1 fogo', 'Velocidade', 'Escudo', 'Chute', 'Fogo perfurante'];
+const PU_NAMES = ['+1 bomba', '+1 fogo', 'Velocidade', 'Escudo', 'Chute', 'Fogo perfurante', 'Luva de arremesso'];
 const DIFFS = ['Fácil', 'Normal', 'Difícil'];
 const EMOTES = ['👍', '😂', '😱', '💣'];
 
 function mapTiles(m) {
   const t = { conv: [], spk: [], tele: [], slow: [], convAt: new Int8Array(N).fill(-1), spkAt: new Uint8Array(N), teleTo: new Int16Array(N).fill(-1), slowAt: new Uint8Array(N), special: new Uint8Array(N) };
-  if (m === 0) t.tele = [[0, 5, 12, 5], [6, 0, 6, 10]];
   if (m === 1) t.slow = [[6, 3], [6, 4], [6, 5], [6, 6], [6, 7], [4, 4], [5, 4], [7, 4], [8, 4], [4, 6], [5, 6], [7, 6], [8, 6]];
-  if (m === 2) t.spk = [[6, 2], [6, 8], [2, 5], [10, 5], [4, 4], [8, 4], [4, 6], [8, 6]];
-  if (m === 3) {
-    for (let x = 2; x < 10; x++) t.conv.push([x, 2, 3]);
-    for (let y = 2; y < 8; y++) t.conv.push([10, y, 0]);
-    for (let x = 10; x > 2; x--) t.conv.push([x, 8, 1]);
-    for (let y = 8; y > 2; y--) t.conv.push([2, y, 2]);
-    t.spk = [[6, 5], [4, 5], [8, 5]];
-  }
-  if (m === 5) { t.slow = [[4, 2], [6, 2], [8, 2], [2, 4], [10, 4], [2, 6], [10, 6], [4, 8], [6, 8], [8, 8], [6, 4], [6, 6]]; t.tele = [[0, 5, 12, 5]]; }
-  if (m === 6) t.spk = [[2, 2], [10, 2], [2, 8], [10, 8], [6, 4], [6, 6], [4, 5], [8, 5], [6, 2], [6, 8]];
-  if (m === 7) { t.tele = [[2, 2, 10, 8], [10, 2, 2, 8], [6, 0, 6, 10]]; for (let x = 3; x <= 9; x++) { t.conv.push([x, 4, 3]); t.conv.push([12 - x, 6, 1]); } }
+  if (m === 2) t.tele = [[2, 2, 10, 8], [10, 2, 2, 8]];
+  if (m === 3) t.slow = [[4, 2], [8, 2], [2, 4], [10, 4], [2, 6], [10, 6], [4, 8], [8, 8], [6, 4], [6, 6], [4, 5], [8, 5]];
+  if (m === 4) t.spk = [[2, 2], [10, 2], [2, 8], [10, 8], [6, 4], [6, 6]];
   for (const c of t.conv) { t.convAt[idx(c[0], c[1])] = c[2]; t.special[idx(c[0], c[1])] = 1; }
   for (const c of t.spk) { t.spkAt[idx(c[0], c[1])] = 1; t.special[idx(c[0], c[1])] = 1; }
   for (const c of t.slow) { t.slowAt[idx(c[0], c[1])] = 1; t.special[idx(c[0], c[1])] = 1; }
@@ -71,9 +62,9 @@ function spiralOrder() {
 const SPIRAL = spiralOrder();
 
 // Estado do mundo (o anfitrião escreve direto; convidados preenchem a partir do snapshot)
-const V = { ph: 'idle', rnd: 0, epoch: 0, map: 0, t: ROUND_T, el: 0, c: 0, grid: new Uint8Array(N), slots: [], bombs: [], flames: [], pus: [], tiles: mapTiles(0), ld: null, wn: WINS, win: -1, mwin: -1, sh: 0, diff: 1 };
-function mkSlot(i) { return { i, k: '-', peer: null, nm: '', ch: i, w: 0, al: 0, x: SPAWNS[i][0], y: SPAWNS[i][1], d: 0, m: 0, maxB: 1, range: 2, spd: 0, shield: 0, kick: 0, pierce: 0, inv: 0, cd: 0, e: [0, 0], dashT: 0, dashDir: 0, tl: 0, lim: 0, _cdT: 0, _invT: 0, _lastQ: 0, _eSeq: 0, bot: null }; }
-V.slots = [0, 1, 2, 3].map(mkSlot);
+const V = { ph: 'idle', rnd: 0, epoch: 0, map: 0, t: ROUND_T, el: 0, c: 0, grid: new Uint8Array(N), slots: [], bombs: [], flames: [], pus: [], tiles: mapTiles(0), ld: null, wn: WINS, pz: false, win: -1, mwin: -1, sh: 0, diff: 1 };
+function mkSlot(i) { return { i, k: '-', peer: null, nm: '', ch: i, w: 0, al: 0, x: SPAWNS[i][0], y: SPAWNS[i][1], d: 0, m: 0, maxB: 1, range: 2, spd: 0, shield: 0, kick: 0, pierce: 0, inv: 0, cd: 0, glove: 0, stun: 0, away: 0, _stunT: 0, e: [0, 0], dashT: 0, dashDir: 0, tl: 0, lim: 0, _cdT: 0, _invT: 0, _lastQ: 0, _eSeq: 0, bot: null }; }
+V.slots = [0, 1, 2, 3, 4, 5].map(mkSlot);
 
 function bombAtCell(x, y, except) { for (const b of V.bombs) if (b !== except && !b.fly && Math.round(b.x) === x && Math.round(b.y) === y) return b; return null; }
 function solidCell(x, y) { return !inb(x, y) || V.grid[idx(x, y)] !== EMPTY; }

@@ -73,7 +73,11 @@ input:focus{border-color:#ffb300}
 #tm{display:block;font-family:"Russo One",system-ui,sans-serif;font-size:24px;line-height:1.05;text-shadow:0 2px 6px #000}#rd{font-size:11px;color:#c9d0e0;text-shadow:0 1px 4px #000;white-space:nowrap}
 #clock.hot #tm{color:#ff5a4d}#clock.hot #rd{color:#ffb0a8;font-weight:700}
 #b-set{width:40px;height:40px;border-radius:12px;background:rgba(14,17,30,.7);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}
-#b-set svg{width:20px;height:20px}
+#b-set svg,#b-pause svg{width:20px;height:20px}
+#topr{display:flex;gap:6px}#b-pause{width:40px;height:40px;border-radius:12px;background:rgba(14,17,30,.7);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}
+#chips.many{gap:3px}#chips.many .av.sm{width:23px;height:23px}#chips.many .pchip{font-size:8px}
+#recon{position:fixed;left:0;right:0;top:64px;z-index:31;display:flex;justify-content:center;padding:0 12px;pointer-events:none}#recon .panel{max-width:340px;text-align:center;padding:12px 14px}#recon h3{margin:0 0 4px;font-size:17px;font-family:"Russo One",system-ui,sans-serif}#recon p{margin:0;font-size:12.5px;color:#c9d0e0}
+#pause{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:rgba(4,6,14,.72);padding:16px}#pause .panel{text-align:center;max-width:320px}#pause h3{font-family:"Russo One",system-ui,sans-serif;font-size:26px;margin:0 0 6px}#pause p{margin:0 0 6px;color:#c9d0e0;font-size:13.5px;min-height:18px}
 #stats{position:absolute;left:8px;top:58px;display:flex;gap:5px;flex-wrap:wrap;max-width:60%}
 #stats span{display:flex;align-items:center;gap:3px;background:rgba(14,17,30,.72);border-radius:999px;padding:3px 8px 3px 4px;font-weight:800;font-size:13px}#stats img{width:18px;height:18px}
 #joyzone{position:absolute;left:0;top:60px;bottom:0;width:58%;touch-action:none;-webkit-touch-callout:none}
@@ -116,7 +120,8 @@ input:focus{border-color:#ffb300}
   <div id="top">
     <div id="chips"></div>
     <div id="clock"><b id="tm">2:00</b><span id="rd">Rodada 1</span></div>
-    <button id="b-set" aria-label="Configurações"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></button>
+    <div id="topr"><button id="b-pause" aria-label="Pausar"><svg viewBox="0 0 24 24" fill="#fff"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+    <button id="b-set" aria-label="Configurações"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2.2"/><circle cx="8" cy="17" r="2.2"/></svg></button></div>
   </div>
   <div id="stats"></div>
   <div id="controls">
@@ -132,6 +137,8 @@ input:focus{border-color:#ffb300}
   <div id="spec" class="hide"></div>
 </div>
 <div id="banner" class="hide"></div>
+<div id="recon" class="hide"><div class="panel"><h3>Reconectando…</h3><p>A conexão com o anfitrião caiu ou ele saiu do navegador. A partida continua assim que ele voltar.</p></div></div>
+<div id="pause" class="hide"><div class="panel"><h3>JOGO PAUSADO</h3><p id="pz-who"></p><button id="b-resume" class="btn pri">Continuar</button></div></div>
 
 <div id="home" class="screen">
   <div class="panel">
@@ -176,11 +183,11 @@ input:focus{border-color:#ffb300}
 
 <div id="how" class="modal hide"><div class="panel">
   <h3>Como jogar</h3>
-  <p>Solte bombas para abrir caminho pelos blocos e eliminar os adversários. O último em pé vence a rodada; quem vencer o número de rodadas combinado na sala leva a partida.</p>
+  <p>Solte bombas para abrir caminho pelos blocos e eliminar os adversários. O último em pé vence a rodada; quem vencer o número de rodadas combinado na sala leva a partida. Qualquer jogador pode pausar pelo botão no topo.</p>
   <p><b>Controles:</b> arraste o lado esquerdo da tela para andar. Botão vermelho solta a bomba; o botão colorido usa o poder do seu personagem. No computador: setas ou WASD, Espaço e E.</p>
   <p><b>Itens</b> aparecem ao destruir blocos:</p>
   <div id="how-list"></div>
-  <p><b>Mapas:</b> na Cidade há bueiros que teleportam; na Praia, areia fofa que deixa lento; no Estádio, espinhos que sobem do chão; na Fábrica, esteiras e espinhos; o Clássico é o campo verde tradicional, sem armadilhas; a Neve tem neve funda e um túnel; o Vulcão é cheio de espinhos; o Espaço tem portais e esteiras. Nos últimos 45 segundos a arena começa a fechar.</p>
+  <p><b>Mapas:</b> o Clássico é o campo verde tradicional; na Praia e no Deserto há areia fofa que deixa lento; no Jardim, túneis que teleportam; no Castelo, espinhos que sobem do chão. No último minuto a arena começa a fechar.</p><p><b>Bomba na cabeça:</b> quem leva uma bomba arremessada em cima fica tonto por um instante.</p>
   <button id="b-howx" class="btn pri">Entendi</button>
 </div></div>
 

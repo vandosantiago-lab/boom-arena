@@ -1,7 +1,7 @@
 // ===================== SIMULAÇÃO (anfitrião / solo) =====================
 const Sim = { time: 0, nextId: 1, burn: new Map(), flameGrid: new Uint8Array(N), phT: 0, shT: 0, endT: 0, mapChoice: -1, order: [0, 1, 2, 3], BG: new Uint8Array(N) };
 
-function rollPU() { const r = Math.random() * 100; return r < 28 ? 0 : r < 56 ? 1 : r < 74 ? 2 : r < 83 ? 3 : r < 92 ? 4 : 5; }
+function rollPU() { const r = Math.random() * 100; return r < 26 ? 0 : r < 52 ? 1 : r < 68 ? 2 : r < 76 ? 3 : r < 84 ? 4 : r < 91 ? 5 : 6; }
 
 function genGrid() {
   const g = V.grid, keep = new Uint8Array(N);
@@ -15,10 +15,11 @@ function genGrid() {
   }
 }
 
-function simSetupMatch(mapChoice, diff, time, wins) {
+function simSetupMatch(mapChoice, diff, time, wins, shuf) {
+  Sim.shuf = !!shuf;
   Sim.rt = clamp(time | 0 || ROUND_T, 60, 600); V.wn = clamp(wins | 0 || WINS, 1, 9);
   Sim.mapChoice = mapChoice; V.diff = diff;
-  Sim.order = [4].concat([0, 1, 2, 3, 5, 6, 7].sort(() => Math.random() - 0.5));
+  Sim.order = [0].concat([1, 2, 3, 4].sort(() => Math.random() - 0.5));
   V.rnd = 0; V.mwin = -1;
   for (const s of V.slots) { s.w = 0; s.e = [0, 0]; }
   simStartRound();
@@ -30,8 +31,10 @@ function simStartRound() {
   V.tiles = mapTiles(V.map);
   genGrid();
   V.bombs.length = 0; V.flames.length = 0; V.pus.length = 0; Sim.burn.clear(); Sim.flameGrid.fill(0);
+  const act = V.slots.filter(s => s.k !== '-'), sp = Sim.shuf ? [0, 1, 2, 3, 4, 5].sort(() => Math.random() - 0.5) : null; V.pz = false;
   for (const s of V.slots) {
-    s.al = s.k !== '-' ? 1 : 0; s.x = SPAWNS[s.i][0]; s.y = SPAWNS[s.i][1]; s.d = 0; s.m = 0;
+    const q = SPAWNS[sp && s.k !== '-' ? sp[act.indexOf(s)] : s.i];
+    s.al = s.k !== '-' ? 1 : 0; s.x = q[0]; s.y = q[1]; s.d = 0; s.m = 0; s.glove = 0; s.stun = 0; s._stunT = 0;
     s.maxB = 1; s.range = 2; s.spd = 0; s.shield = 0; s.kick = 0; s.pierce = 0; s.inv = 0; s.cd = 0;
     s._cdT = 0; s._invT = 0; s.dashT = 0; s.tl = 0; s.lim = 0;
     s.bot = s.k === 'b' ? { t: Math.random() * 0.4, path: [], goal: -1 } : null;
@@ -89,7 +92,7 @@ function tickBombs(dt) {
     if (!V.bombs.includes(b)) continue;
     if (b.fly) {
       b.fly.p += dt / 0.55;
-      if (b.fly.p >= 1) { b.fly = null; if (V.grid[idx(b.x, b.y)] !== EMPTY || Sim.flameGrid[idx(b.x, b.y)] || bombAtCell(b.x, b.y, b)) b.fuse = 0; }
+      if (b.fly.p >= 1) { b.fly = null; { const hit = playerAtCell(b.x, b.y); if (hit && Sim.time >= hit._invT) { hit._stunT = Sim.time + 1.7; hit.dashT = 0; hit.m = 0; } } if (V.grid[idx(b.x, b.y)] !== EMPTY || Sim.flameGrid[idx(b.x, b.y)] || bombAtCell(b.x, b.y, b)) b.fuse = 0; }
       else continue;
     }
     if (b.sl >= 0) { if (!slideBomb(b, b.sl, b.slSpd, dt)) b.sl = -1; }
@@ -106,6 +109,8 @@ function mkBomb(i, x, y, type, fuse) { const s = V.slots[i]; const b = { id: Sim
 function reqBomb(i, cx, cy) {
   const s = V.slots[i]; if (V.ph !== 'play' || !s || !s.al) return false;
   cx |= 0; cy |= 0; if (!inb(cx, cy) || Math.abs(cx - s.x) > 1.6 || Math.abs(cy - s.y) > 1.6) return false;
+  if (s.stun) return false;
+  { const ob = bombAtCell(cx, cy); if (ob && s.glove && ob.type === 0 && !ob.fly && Math.round(s.x) === cx && Math.round(s.y) === cy) { const L = findLanding(cx, cy, s.d); if (!L) return false; ob.fly = { fx: cx, fy: cy, p: 0 }; ob.x = L[0]; ob.y = L[1]; ob.sl = -1; return true; } }
   if (V.grid[idx(cx, cy)] !== EMPTY || bombAtCell(cx, cy)) return false;
   if (ownBombs(i) >= s.maxB) return false;
   mkBomb(i, cx, cy, 0, FUSE); return true;
@@ -121,7 +126,7 @@ function findLanding(cx, cy, dir) {
 }
 
 function reqAbility(i, type, cx, cy, dir) {
-  const s = V.slots[i]; if (V.ph !== 'play' || !s || !s.al) return false;
+  const s = V.slots[i]; if (V.ph !== 'play' || !s || !s.al || s.stun) return false;
   cx |= 0; cy |= 0; dir = dir & 3; if (!inb(cx, cy) || Math.abs(cx - s.x) > 1.6 || Math.abs(cy - s.y) > 1.6) return false;
   const ch = CHARS[s.ch].k;
   if (type === 'p') { if (!(s.kick || ch === 3)) return false; return kickBomb(bombAtCell(cx + DX[dir], cy + DY[dir]), dir); }
@@ -151,7 +156,7 @@ function reqAbility(i, type, cx, cy, dir) {
 
 function applyPU(s, t) {
   if (t === 0) s.maxB = Math.min(6, s.maxB + 1); else if (t === 1) s.range = Math.min(7, s.range + 1);
-  else if (t === 2) s.spd = Math.min(4, s.spd + 1); else if (t === 3) s.shield = 1; else if (t === 4) s.kick = 1; else s.pierce = 1;
+  else if (t === 2) s.spd = Math.min(4, s.spd + 1); else if (t === 3) s.shield = 1; else if (t === 4) s.kick = 1; else if (t === 5) s.pierce = 1; else s.glove = 1;
 }
 function killSlot(s) { s.al = 0; s.m = 0; s.dashT = 0; V.ld = [s.x, s.y]; }
 
@@ -162,7 +167,9 @@ function endRound(w) {
   V.ph = 'rend'; Sim.phT = 4.2;
 }
 
+function simTogglePause(i) { if (V.ph !== 'play' && V.ph !== 'count') return; const n = performance.now(); if (n - (Sim.pzAt || 0) < 400) return; Sim.pzAt = n; V.pz = !V.pz; V.pzBy = i; }
 function simTick(dt) {
+  if (V.pz) return;
   Sim.time += dt;
   if (V.ph === 'count') { Sim.phT -= dt; V.c = Math.max(1, Math.ceil(Sim.phT)); if (Sim.phT <= 0) V.ph = 'play'; return; }
   if (V.ph === 'rend') {
@@ -174,7 +181,7 @@ function simTick(dt) {
   }
   if (V.ph !== 'play') return;
   V.t = Math.max(0, V.t - dt); V.el += dt;
-  for (const s of V.slots) { s.cd = Math.max(0, s._cdT - Sim.time); s.inv = Sim.time < s._invT ? 1 : 0; if (s.al && s.k === 'b') botUpdate(s, dt); }
+  for (const s of V.slots) { s.cd = Math.max(0, s._cdT - Sim.time); s.inv = Sim.time < s._invT ? 1 : 0; s.stun = Sim.time < s._stunT ? 1 : 0; if (s.al && s.k === 'b') { if (s.stun) s.m = 0; else botUpdate(s, dt); } }
   tickBombs(dt);
   for (let i = V.flames.length - 1; i >= 0; i--) { V.flames[i].ttl -= dt; if (V.flames[i].ttl <= 0) V.flames.splice(i, 1); }
   Sim.flameGrid.fill(0); for (const f of V.flames) for (const c of f.cells) Sim.flameGrid[idx(c[0], c[1])] = 1;
