@@ -1,5 +1,5 @@
 // ===================== JOGO, ENTRADA E INTERFACE =====================
-const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4, time: 120, wins: 2, shuf: 0, teams: 0, rev: 0 }, rank: {}, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
+const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4, time: 120, wins: 2, shuf: 0, teams: 0, rev: 0 }, joy: 0, sens: 0, rank: {}, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
 const In = { x: 0, y: 0, bomb: false, abil: false, keys: {}, jid: null, jon: false, ox: 0, oy: 0, jx: 0, jy: 0 };
 const UI = { ph: '', ep: -1, phT: 0, c: -1, labs: [], sig: {}, bannerT: 0, toastT: 0, cdWas: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -131,7 +131,7 @@ function avatar(ch, col, cls = '') { const src = G.portraits[ch]; return `<span 
 
 UI.init = function () {
   const L = $('labels'); for (let i = 0; i < NS; i++) { const d = document.createElement('div'); d.className = 'lab'; d.style.display = 'none'; d.style.color = colOf(i); L.appendChild(d); UI.labs.push(d); }
-  try { Game.name = cleanName(localStorage.getItem('boom.nm') || 'Jogador'); Game.ch = clamp(parseInt(localStorage.getItem('boom.ch')) || 0, 0, NCH - 1); Au.on = localStorage.getItem('boom.snd') !== '0'; Au.vib = localStorage.getItem('boom.vib') !== '0'; Mu.on = localStorage.getItem('boom.mus') !== '0'; Game.cam = clamp(parseInt(localStorage.getItem('boom.cam')) || 0, 0, 2); } catch (e) { }
+  try { Game.name = cleanName(localStorage.getItem('boom.nm') || 'Jogador'); Game.ch = clamp(parseInt(localStorage.getItem('boom.ch')) || 0, 0, NCH - 1); Au.on = localStorage.getItem('boom.snd') !== '0'; Au.vib = localStorage.getItem('boom.vib') !== '0'; Mu.on = localStorage.getItem('boom.mus') !== '0'; Game.cam = clamp(parseInt(localStorage.getItem('boom.cam')) || 0, 0, 2); Game.joy = clamp(parseInt(localStorage.getItem('boom.joy')) || 0, 0, 2); Game.sens = clamp(parseInt(localStorage.getItem('boom.sens')) || 0, 0, 2); } catch (e) { }
   $('nm').value = Game.name === 'Jogador' ? '' : Game.name;
   $('nm').addEventListener('input', () => { Game.name = cleanName($('nm').value); try { localStorage.setItem('boom.nm', Game.name); } catch (e) { } });
   UI.renderChars();
@@ -153,10 +153,12 @@ UI.init = function () {
   $('how-list').innerHTML = [0, 1, 2, 3, 4, 5, 6, 8, 9, 7].map((t, j) => `<div class="pu"><img src="${G.icons[t]}" style="background:${PU_BG[t]}" alt=""><span>${['Mais uma bomba ao mesmo tempo', 'Explosão alcança mais longe', 'Você anda mais rápido', 'Aguenta uma explosão', 'Chuta bombas ao encostar nelas', 'Explosão atravessa blocos', 'Aperte bomba de novo em cima dela para arremessar', 'Aperte bomba de frente para uma bomba e ela voa longe', 'Suas próximas 2 bombas congelam em vez de explodir', 'Maldição por 10 segundos; passa para quem você encostar'][j]}</span></div>`).join('');
   // controles
   const jz = $('joyzone'), joy = $('joy'), knob = $('joyk');
-  const R = 30, DEAD = 7, hasTouch = 'ontouchstart' in window;
-  const jset = (x, y) => { let dx = x - In.ox, dy = y - In.oy; const m = Math.hypot(dx, dy); if (m > R) { In.ox += dx * (1 - R / m); In.oy += dy * (1 - R / m); dx *= R / m; dy *= R / m; joy.style.left = In.ox + 'px'; joy.style.top = In.oy + 'px'; } knob.style.transform = `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`; if (m > DEAD) { In.x = dx / Math.min(m, R); In.y = dy / Math.min(m, R); } else In.x = In.y = 0; };
-  const jstart = (id, x, y) => { Au.init(); In.jid = id; In.jon = true; In.ox = x; In.oy = y; In.x = In.y = 0; joy.style.left = x + 'px'; joy.style.top = y + 'px'; joy.classList.add('on'); knob.style.transform = 'translate(-50%,-50%)'; };
-  const jend = () => { In.jon = false; In.jid = null; In.x = In.y = 0; joy.classList.remove('on'); joy.style.left = ''; joy.style.top = ''; knob.style.transform = ''; };
+  const hasTouch = 'ontouchstart' in window, RS = [20, 28, 38], DS = [4, 6, 9];
+  // direção sai do ângulo do dedo em relação ao centro; responde a partir de poucos pixels
+  const jset = (x, y) => { const R = RS[Game.sens], DEAD = In.fix ? DS[Game.sens] + 3 : DS[Game.sens]; let dx = x - In.ox, dy = y - In.oy; const m = Math.hypot(dx, dy); if (m > R) { if (!In.fix) { In.ox += dx * (1 - R / m); In.oy += dy * (1 - R / m); joy.style.left = In.ox + 'px'; joy.style.top = In.oy + 'px'; } dx *= R / m; dy *= R / m; } const k = 40 / R; knob.style.transform = `translate(calc(-50% + ${dx * k}px),calc(-50% + ${dy * k}px))`; if (m > DEAD) { In.x = dx / Math.min(m, R); In.y = dy / Math.min(m, R); } else In.x = In.y = 0; };
+  // tocar em cima do direcional parado usa o centro dele (responde na hora, como um controle físico); tocar longe cria o direcional sob o dedo
+  const jstart = (id, x, y) => { Au.init(); let cx = x, cy = y, fix = false; if (!In.jon) { const r = joy.getBoundingClientRect(), bx = r.left + r.width / 2, by = r.top + r.height / 2; fix = Game.joy === 1 || (Game.joy === 0 && Math.hypot(x - bx, y - by) < 78); if (fix) { cx = bx; cy = by; } } In.jid = id; In.jon = true; In.fix = fix; In.ox = cx; In.oy = cy; In.x = In.y = 0; joy.style.left = cx + 'px'; joy.style.top = cy + 'px'; joy.classList.add('on'); knob.style.transform = 'translate(-50%,-50%)'; if (fix) jset(x, y); };
+  const jend = () => { In.jon = false; In.fix = false; In.jid = null; In.x = In.y = 0; joy.classList.remove('on'); joy.style.left = ''; joy.style.top = ''; knob.style.transform = ''; };
   // toque (iPhone e Android): eventos de toque diretos, os mais confiáveis
   const held = e => In.jon && [...e.touches].some(t => t.identifier === In.jid);
   // a 2nd finger in the zone must not steal the stick from a finger that is still down
@@ -198,13 +200,13 @@ UI.renderChars = function () {
 UI.pickChar = function (c) { Game.ch = c; try { localStorage.setItem('boom.ch', c); } catch (e) { } UI.renderChars(); if (Game.mode === 'host' && Net.chan) Net.chan.presence({ ch: c, nm: Game.name }); };
 UI.renderSettings = function () {
   const row = (label, opts, cur, key) => `<div class="srow"><span>${label}</span><div class="chips">${opts.map((o, i) => `<button class="chip${i === cur ? ' sel' : ''}" data-k="${key}" data-v="${i}">${o}</button>`).join('')}</div></div>`;
-  $('set-body').innerHTML = row('Gráficos', ['Leve', 'Médio', 'Máximo'], G.q, 'q') + row('Câmera', ['Automática', 'Arena inteira', 'Aproximada'], Game.cam, 'cam') + row('Som', ['Desligado', 'Ligado'], Au.on ? 1 : 0, 'snd') + row('Música', ['Desligada', 'Ligada'], Mu.on ? 1 : 0, 'mus') + row('Vibração', ['Desligada', 'Ligada'], Au.vib ? 1 : 0, 'vib') + `<button class="btn" id="set-full">Tela cheia</button><button class="btn" id="set-quit">Sair da partida</button><button class="btn pri" id="set-close">Voltar ao jogo</button>`;
+  $('set-body').innerHTML = row('Gráficos', ['Leve', 'Médio', 'Máximo'], G.q, 'q') + row('Direcional', ['Automático', 'Fixo', 'Solto'], Game.joy, 'joy') + row('Sensibilidade', ['Alta', 'Média', 'Baixa'], Game.sens, 'sens') + row('Câmera', ['Automática', 'Arena inteira', 'Aproximada'], Game.cam, 'cam') + row('Som', ['Desligado', 'Ligado'], Au.on ? 1 : 0, 'snd') + row('Música', ['Desligada', 'Ligada'], Mu.on ? 1 : 0, 'mus') + row('Vibração', ['Desligada', 'Ligada'], Au.vib ? 1 : 0, 'vib') + `<button class="btn" id="set-full">Tela cheia</button><button class="btn" id="set-quit">Sair da partida</button><button class="btn pri" id="set-close">Voltar ao jogo</button>`;
   if (!UI.setBound) {
     UI.setBound = true; $('set-body').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return; Au.init(); Au.play('click');
       if (b.id === 'set-close') return show('settings', false); if (b.id === 'set-quit') return goHome(); if (b.id === 'set-full') return toggleFull();
       const k = b.dataset.k, v = +b.dataset.v; const save = (n, x) => { try { localStorage.setItem(n, x); } catch (e) { } };
-      if (k === 'q') { Game.qLock = true; setQuality(v); save('boom.q', v); } if (k === 'snd') { Au.on = !!v; save('boom.snd', v); } if (k === 'mus') { Mu.on = !!v; save('boom.mus', v); } if (k === 'cam') { Game.cam = v; save('boom.cam', v); } if (k === 'vib') { Au.vib = !!v; save('boom.vib', v); if (v) Au.buzz(40); }
+      if (k === 'q') { Game.qLock = true; setQuality(v); save('boom.q', v); } if (k === 'snd') { Au.on = !!v; save('boom.snd', v); } if (k === 'mus') { Mu.on = !!v; save('boom.mus', v); } if (k === 'cam') { Game.cam = v; save('boom.cam', v); } if (k === 'joy') { Game.joy = v; save('boom.joy', v); } if (k === 'sens') { Game.sens = v; save('boom.sens', v); } if (k === 'vib') { Au.vib = !!v; save('boom.vib', v); if (v) Au.buzz(40); }
       UI.renderSettings();
     });
   }

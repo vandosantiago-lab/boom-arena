@@ -131,7 +131,7 @@ function updateMover(p, ix, iy, dt) {
     if (r.moved < 1e-4) p.dashT = 0;
   } else {
     const ax = Math.abs(ix), ay = Math.abs(iy); let moved = 0;
-    if (ax > 0.25 || ay > 0.25) {
+    if (ax > 0.15 || ay > 0.15) {
       const c = p.m ? p.d : -1, cH = c === 1 || c === 3, hdir = ix > 0 ? 3 : 1, vdir = iy > 0 ? 0 : 2;
       let hz = ax > ay * 1.25 ? true : ay > ax * 1.25 ? false : (p.d === 1 || p.d === 3);
       // thumb still includes the direction we are moving in (diagonal-ish): never ping-pong between the two axes
