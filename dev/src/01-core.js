@@ -133,12 +133,12 @@ function updateMover(p, ix, iy, dt) {
     const ax = Math.abs(ix), ay = Math.abs(iy); let moved = 0;
     if (ax > 0.15 || ay > 0.15) {
       const c = p.m ? p.d : -1, cH = c === 1 || c === 3, hdir = ix > 0 ? 3 : 1, vdir = iy > 0 ? 0 : 2;
-      let hz = ax > ay * 1.12 ? true : ay > ax * 1.12 ? false : (p.d === 1 || p.d === 3);
+      let hz = ax > ay * 1.18 ? true : ay > ax * 1.18 ? false : (p.d === 1 || p.d === 3);
       // thumb still includes the direction we are moving in (diagonal-ish): never ping-pong between the two axes
       if (ax > 0.3 && ay > 0.3 && c >= 0 && (c === hdir || c === vdir)) {
         const ts = turnSlide(p, cH ? vdir : hdir), back = ts === null ? 9 : Math.max(0, -ts * ((c === 0 || c === 3) ? 1 : -1));
         if (p.tc > 0) hz = cH;                                                          // just turned: commit for 0.3 cells
-        else if (ax <= ay * 1.12 && ay <= ax * 1.12) hz = ts !== null && Math.abs(ts) <= 0.2 ? !cH : cH; // true diagonal: take the next opening
+        else if (ax <= ay * 1.18 && ay <= ax * 1.18) hz = ts !== null && Math.abs(ts) <= 0.2 ? !cH : cH; // true diagonal: take the next opening
         else if (hz !== cH && back > 0.25) hz = cH;                                      // never slide back more than 0.25 to un-turn
       }
       const d1 = hz ? (ix > 0 ? 3 : 1) : (iy > 0 ? 0 : 2);
