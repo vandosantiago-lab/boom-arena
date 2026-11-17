@@ -97,7 +97,7 @@ function tickBombs(dt) {
     if (!V.bombs.includes(b)) continue;
     if (b.fly) {
       b.fly.p += dt / 0.55;
-      if (b.fly.p >= 1) { b.fly = null; { const hit = playerAtCell(b.x, b.y); if (hit && Sim.time >= hit._invT) { hit._stunT = Sim.time + 1.7; hit.dashT = 0; hit.m = 0; } } if (V.grid[idx(b.x, b.y)] !== EMPTY || Sim.flameGrid[idx(b.x, b.y)] || bombAtCell(b.x, b.y, b)) b.fuse = 0; }
+      if (b.fly.p >= 1) { b.fly = null; { const hit = playerAtCell(b.x, b.y); if (hit && Sim.time >= hit._invT) { hit._stunT = Sim.time + 0.9; hit.dashT = 0; hit.m = 0; if (b.type !== 1) b.fuse = Math.max(b.fuse, 2.1); } } if (V.grid[idx(b.x, b.y)] !== EMPTY || Sim.flameGrid[idx(b.x, b.y)] || bombAtCell(b.x, b.y, b)) b.fuse = 0; }
       else continue;
     }
     if (b.sl >= 0) { if (!slideBomb(b, b.sl, b.slSpd, dt)) b.sl = -1; }

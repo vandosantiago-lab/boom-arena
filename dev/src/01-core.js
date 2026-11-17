@@ -20,7 +20,7 @@ const CHARS = [
   { name: 'Dudu', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5, k: 3 },
   { name: 'Bia', tag: 'Bomba de gelo', desc: 'Arremessa uma bomba de gelo que congela quem estiver na explosão.', btn: 'GELO', col: '#4fc3ff', cd: 7, k: 4 },
   { name: 'Téo', tag: 'Escudo', desc: 'Ergue um escudo por 3 segundos que aguenta uma explosão.', btn: 'ESCUDO', col: '#8f9bb3', cd: 9, k: 5 },
-  { name: 'Nina', tag: 'Teleporte', desc: 'Some e reaparece até três casas à frente, atravessando blocos.', btn: 'SUMIR', col: '#c2185b', cd: 6, k: 6 },
+  { name: 'Nina', tag: 'Teleporte', desc: 'Some e reaparece até três casas à frente, atravessando blocos.', btn: 'SUMIR', col: '#c2185b', cd: 7.5, k: 6 },
   { name: 'Rex', tag: 'Soco', desc: 'Dá um soco na bomba à frente e ela voa por cima dos blocos.', btn: 'SOCO', col: '#ff9f43', cd: 4, k: 7 },
 ];
 const NCH = CHARS.length;
