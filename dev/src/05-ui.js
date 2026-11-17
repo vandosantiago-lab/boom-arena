@@ -1,5 +1,5 @@
 // ===================== JOGO, ENTRADA E INTERFACE =====================
-const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4, time: 120, wins: 2, shuf: 0, teams: 0, rev: 0 }, joy: 0, sens: 1, rank: {}, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
+const Game = { mode: 'attract', me: { x: 0, y: 0, d: 0, m: 0, dashT: 0, dashDir: 0, tl: 0, lim: 0, spd: 0 }, name: 'Jogador', ch: 0, opt: { map: -1, bots: 2, size: 4, time: 120, wins: 2, shuf: 0, teams: 0, rev: 0 }, joy: 0, sens: 1, tmMap: {}, tmSeen: {}, tmReq: [0, 0], rank: {}, cam: 0, dashLock: 0, kickT: 0, qLock: false, fpsT: 0, fpsN: 0 };
 const In = { x: 0, y: 0, bomb: false, abil: false, keys: {}, jid: null, jon: false, ox: 0, oy: 0, jx: 0, jy: 0 };
 const UI = { ph: '', ep: -1, phT: 0, c: -1, labs: [], sig: {}, bannerT: 0, toastT: 0, cdWas: 0 };
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -79,13 +79,15 @@ function startMatch() {
 }
 function lobbyBuild() {
   const hs = [{ peer: Net.gid, nm: Game.name, ch: Game.ch, jt: -1 }];
-  if (Game.mode === 'host') { for (const p of Net.chan.peers()) { if (p.isMe && p.sameTab) continue; const pr = p.presence; if (!pr || pr.v !== 1 || pr.host || p.stale) continue; hs.push({ peer: pidOf(p), nm: cleanName(pr.nm), ch: clamp(pr.ch | 0, 0, NCH - 1), jt: +pr.jt || 0 }); } hs.sort((a, b) => a.jt - b.jt); }
+  if (Game.mode === 'host') { for (const p of Net.chan.peers()) { if (p.isMe && p.sameTab) continue; const pr = p.presence; if (!pr || pr.v !== 1 || pr.host || p.stale) continue; hs.push({ peer: pidOf(p), nm: cleanName(pr.nm), ch: clamp(pr.ch | 0, 0, NCH - 1), jt: +pr.jt || 0, tm: Array.isArray(pr.tm) ? pr.tm : null }); } hs.sort((a, b) => a.jt - b.jt); }
   const size = clamp(Game.opt.size | 0, 2, NS), used = hs.slice(0, size).map(h => h.ch), free = CHARS.map((c, i) => i).filter(c => !used.includes(c)); let fi = 0;
   for (let i = 0; i < NS; i++) {
     const s = V.slots[i], h = i < size ? hs[i] : null;
     if (h) { s.k = 'h'; s.peer = h.peer; s.nm = h.nm; s.ch = h.ch; }
     else if (i < size && Game.opt.bots > 0) { s.k = 'b'; s.peer = null; s.ch = free.length ? free[fi++ % free.length] : i; s.nm = 'Bot ' + CHARS[s.ch].name; }
     else { s.k = '-'; s.peer = null; s.nm = ''; }
+    if (h && h.tm && h.tm[0] > 0 && Game.tmSeen[h.peer] !== h.tm[0]) { Game.tmSeen[h.peer] = h.tm[0]; Game.tmMap['h:' + h.peer] = h.tm[1] & 1; }   // o jogador pediu para trocar de time
+    { const tk = s.k === 'h' ? 'h:' + s.peer : 'b:' + i; s.tm = Game.tmMap[tk] != null ? Game.tmMap[tk] : i & 1; }
     s.al = 0;
   }
 }
@@ -214,10 +216,11 @@ UI.renderSettings = function () {
 UI.renderLobby = function () {
   const host = isSim(), online = Game.mode !== 'solo', mi = myIdx(), opt = host ? [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, Game.opt.wins, Game.opt.shuf, Game.opt.teams, Game.opt.rev] : (Net.opt || [-1, 0, 4, 120, 2, 0, 0, 0]), size = clamp(opt[2] | 0 || 4, 2, NS);
   if (isSim()) V.teams = !!Game.opt.teams;
-  const sig = JSON.stringify([Game.mode, Net.code, mi, opt, Game.ch, MD.ver, isSim() ? rankList() : Net.rk, V.slots.map(s => [s.k, s.nm, s.ch, s.peer])]); if (sig === UI.sig.lobby) return; UI.sig.lobby = sig;
+  const sig = JSON.stringify([Game.mode, Net.code, mi, opt, Game.ch, MD.ver, isSim() ? rankList() : Net.rk, V.slots.map(s => [s.k, s.nm, s.ch, s.peer, s.tm])]); if (sig === UI.sig.lobby) return; UI.sig.lobby = sig;
   $('lb-head').innerHTML = online ? `<div class="code"><small>CÓDIGO DA SALA</small><b>${esc(Net.code)}</b><button class="link" id="b-copy">Copiar código</button></div><canvas id="qr" width="132" height="132" class="hide"></canvas>` : `<div class="code"><small>MODO</small><b class="solo">Solo</b></div>`;
   $('lb-hint').textContent = online ? (HOSTED ? 'Os outros apontam a câmera do celular para o QR, ou abrem este mesmo link, tocam em "Entrar em sala" e digitam o código.' : 'Os outros jogadores abrem este mesmo jogo, tocam em "Entrar em sala" e digitam o código.') : 'Você contra os bots. Escolha o mapa e a dificuldade.';
-  $('lb-slots').innerHTML = V.slots.slice(0, size).map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${colOf(i)}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${colOf(i)}"></span>${avatar(s.ch, colOf(i))}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i></div>${i === mi ? '<u>Você</u>' : s.k === 'b' ? '<u>Bot</u>' : i === 0 ? '<u>Anfitrião</u>' : ''}</div>`).join('');
+  $('lb-slots').innerHTML = V.slots.slice(0, size).map((s, i) => s.k === '-' ? `<div class="slot empty"><span class="dot" style="background:${colOf(i)}"></span><em>Vaga livre</em></div>` : `<div class="slot"><span class="dot" style="background:${colOf(i)}"></span>${avatar(s.ch, colOf(i))}<div><b>${esc(s.nm)}</b>${opt[6] | 0 ? `<button class="tmb" data-i="${i}" style="background:${TEAMCOL[s.tm]}" ${host || i === mi ? '' : 'disabled'}>${s.tm ? 'Azul' : 'Vermelho'}${host || i === mi ? ' ⇄' : ''}</button>` : `<i>${CHARS[s.ch].name} · ${CHARS[s.ch].tag}</i>`}</div>${i === mi ? '<u>Você</u>' : s.k === 'b' ? '<u>Bot</u>' : i === 0 ? '<u>Anfitrião</u>' : ''}</div>`).join('');
+  $('lb-slots').classList.toggle('tms', !!(opt[6] | 0));
   const chips = (key, names, cur, first) => names.map((n, i) => `<button class="chip${i + first === cur ? ' sel' : ''}" data-k="${key}" data-v="${i + first}" ${host ? '' : 'disabled'}>${n}</button>`).join('');
   const vchips = (key, list, cur) => list.map(q => `<button class="chip${q[0] === cur ? ' sel' : ''}" data-k="${key}" data-v="${q[0]}" ${host ? '' : 'disabled'}>${q[1]}</button>`).join('');
   $('lb-opts').innerHTML = `<div class="srow"><span>Seu personagem · ${CHARS[Game.ch].name} · ${CHARS[Game.ch].tag}</span><div class="chips avs">${CHARS.map((c, i) => `<button class="chip av-chip${i === Game.ch ? ' sel' : ''}" data-k="ch" data-v="${i}">${avatar(i, i === Game.ch ? '#fff' : 'transparent', 'sm')}</button>`).join('')}</div></div>
@@ -231,14 +234,21 @@ UI.renderLobby = function () {
    <div class="srow"><span>Bots</span><div class="chips seg">${chips('bots', online ? ['Sem bots', ...DIFFS] : DIFFS, opt[1], online ? 0 : 1)}</div></div>`;
   $('lb-rank').innerHTML = rankHtml();
   const n = V.slots.filter(s => s.k !== '-').length;
-  $('b-start').classList.toggle('hide', !host); $('b-start').disabled = n < 2;
-  $('lb-wait').textContent = host ? (n < 2 ? 'Aguardando mais jogadores ou ative os bots.' : '') : (mi < 0 ? 'Sala cheia ou partida em andamento — aguarde uma vaga.' : 'Aguardando o anfitrião começar…');
+  $('b-start').classList.toggle('hide', !host); const act = V.slots.filter(s => s.k !== '-'), oneTeam = !!(opt[6] | 0) && n >= 2 && new Set(act.map(s => s.tm)).size < 2;
+  $('b-start').disabled = n < 2 || oneTeam;
+  $('lb-wait').textContent = host ? (n < 2 ? 'Aguardando mais jogadores ou ative os bots.' : oneTeam ? 'Cada time precisa de pelo menos um jogador.' : (opt[6] | 0) ? 'Toque no botão do time para trocar alguém de lado.' : '') : (mi < 0 ? 'Sala cheia ou partida em andamento — aguarde uma vaga.' : (opt[6] | 0) ? 'Toque no seu time para trocar de lado. Aguardando o anfitrião começar…' : 'Aguardando o anfitrião começar…');
   if (online) {
     $('b-copy').onclick = () => { try { navigator.clipboard.writeText(Net.code).then(() => toast('Código copiado'), () => toast('Código: ' + Net.code)); } catch (e) { toast('Código: ' + Net.code); } };
     if (artUrl()) { try { const q = qrcode(0, 'M'); q.addData(artUrl() + '#sala-' + Net.code.toLowerCase()); q.make(); const cvs = $('qr'), x = cvs.getContext('2d'), nn = q.getModuleCount(), sz = Math.floor(124 / nn), off = (132 - sz * nn) / 2; x.fillStyle = '#fff'; x.fillRect(0, 0, 132, 132); x.fillStyle = '#000'; for (let r = 0; r < nn; r++) for (let c = 0; c < nn; c++) if (q.isDark(r, c)) x.fillRect(off + c * sz, off + r * sz, sz, sz); cvs.classList.remove('hide'); } catch (e) { } }
   }
   if (!UI.lobbyBound) {
-    UI.lobbyBound = true; $('lb-opts').addEventListener('click', e => {
+    UI.lobbyBound = true;
+    $('lb-slots').addEventListener('click', e => {
+      const b = e.target.closest('.tmb'); if (!b || b.disabled) return; Au.init(); Au.play('click'); const i = +b.dataset.i, s = V.slots[i]; if (!s || s.k === '-') return;
+      if (isSim()) Game.tmMap[s.k === 'h' ? 'h:' + s.peer : 'b:' + i] = 1 - s.tm; else { Game.tmReq = [Game.tmReq[0] + 1, 1 - s.tm]; s.tm = 1 - s.tm; }
+      UI.sig.lobby = '';
+    });
+    $('lb-opts').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b || b.disabled) return; Au.init(); Au.play('click'); const k = b.dataset.k, v = +b.dataset.v;
       if (k === 'ch') UI.pickChar(v); else if (isSim()) Game.opt[k] = v; UI.sig.lobby = '';
     });
@@ -246,7 +256,7 @@ UI.renderLobby = function () {
 };
 UI.renderEnd = function () {
   const w = V.mwin >= 0 ? V.slots[V.mwin] : null, mi = myIdx();
-  $('end-top').innerHTML = w ? `${avatar(w.ch, colOf(w.i), 'big')}<h2>${V.teams ? TEAMNAME[w.i & 1] : esc(w.nm)} venceu a partida!</h2><p>${V.teams ? (mi >= 0 && teamOf(mi) === teamOf(w.i) ? 'Seu time é o campeão da arena.' : 'Campeões da arena.') : w.i === mi ? 'Você é o campeão da arena.' : 'Campeão da arena com ' + CHARS[w.ch].name + '.'}</p>` : `<h2>Empate!</h2><p>Ninguém levou a melhor desta vez.</p>`;
+  $('end-top').innerHTML = w ? `${avatar(w.ch, colOf(w.i), 'big')}<h2>${V.teams ? TEAMNAME[w.tm] : esc(w.nm)} venceu a partida!</h2><p>${V.teams ? (mi >= 0 && teamOf(mi) === teamOf(w.i) ? 'Seu time é o campeão da arena.' : 'Campeões da arena.') : w.i === mi ? 'Você é o campeão da arena.' : 'Campeão da arena com ' + CHARS[w.ch].name + '.'}</p>` : `<h2>Empate!</h2><p>Ninguém levou a melhor desta vez.</p>`;
   $('end-list').innerHTML = V.slots.filter(s => s.k !== '-').sort((a, b) => b.w - a.w).map(s => `<div class="slot"><span class="dot" style="background:${colOf(s.i)}"></span>${avatar(s.ch, colOf(s.i))}<div><b>${esc(s.nm)}</b><i>${CHARS[s.ch].name}</i></div><u>${s.w} ${s.w === 1 ? 'vitória' : 'vitórias'}</u></div>`).join('');
   $('end-rank').innerHTML = rankHtml();
   $('b-again').classList.toggle('hide', !isSim()); $('end-wait').textContent = isSim() ? '' : 'Aguardando o anfitrião…';
@@ -259,7 +269,7 @@ UI.onPhase = function () {
   if (ph === 'lobby') UI.sig.lobby = '';
   if (ph === 'count') { UI.c = -1; UI.sig.chips = ''; UI.sig.stats = ''; }
   if (ph === 'play') { banner('VAI!', 700); Au.play('go'); }
-  if (ph === 'rend') { const w = V.win >= 0 ? V.slots[V.win] : null, mi = myIdx(); const mine = w && (w.i === mi || (V.teams && mi >= 0 && teamOf(mi) === teamOf(w.i))); banner(w ? (V.teams ? TEAMNAME[w.i & 1] + ' venceu a rodada!' : w.i === mi ? 'Você venceu a rodada!' : w.nm + ' venceu a rodada!') : 'Empate!', 3600, 'Rodada ' + V.rnd); Au.play(mine ? 'win' : 'lose'); }
+  if (ph === 'rend') { const w = V.win >= 0 ? V.slots[V.win] : null, mi = myIdx(); const mine = w && (w.i === mi || (V.teams && mi >= 0 && teamOf(mi) === teamOf(w.i))); banner(w ? (V.teams ? TEAMNAME[w.tm] + ' venceu a rodada!' : w.i === mi ? 'Você venceu a rodada!' : w.nm + ' venceu a rodada!') : 'Empate!', 3600, 'Rodada ' + V.rnd); Au.play(mine ? 'win' : 'lose'); }
   if (ph === 'mend') { UI.renderEnd(); Au.play(V.mwin === myIdx() ? 'win' : 'lose'); }
 };
 UI.tick = function (dt) {

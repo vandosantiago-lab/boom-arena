@@ -616,7 +616,7 @@ function syncPlayers(dt, fdt, t) {
   for (let i = 0; i < NS; i++) {
     const s = V.slots[i], lab = UI.labs[i]; let c = G.chars[i];
     if (s.k === '-') { if (c) c.g.visible = false; if (lab) lab.style.display = 'none'; continue; }
-    if (!c || c.ch !== s.ch || c.ver !== MD.ver || c.tm !== !!V.teams) { if (c) scene.remove(c.g); c = G.chars[i] = buildChar(s.ch, i); c.tm = !!V.teams; scene.add(c.g); c.g.visible = false; }
+    if (!c || c.ch !== s.ch || c.ver !== MD.ver || c.tm !== (V.teams ? s.tm : -1)) { if (c) scene.remove(c.g); c = G.chars[i] = buildChar(s.ch, i); c.tm = V.teams ? s.tm : -1; lab.style.color = colOf(i); scene.add(c.g); c.g.visible = false; }
     const p = rpos(i);
     if (s.al && !c.alive) { c.alive = true; c.dead = 0; c.g.visible = true; c.x = p.x; c.y = p.y; c.rig.rotation.set(0, 0, 0); c.rig.scale.setScalar(c.sc); c.rig.position.y = 0; c.ring.visible = true; if (c.mixer) { c.mixer.stopAllAction(); c.cur = null; c.one = 0; setAnim(c, 'Idle', 0); if (c.tag) c.tag.visible = true; } }
     if (!s.al && c.alive) { if (c.mixer) { c.one = 0; setAnim(c, 'Death_A', 0.05, true); if (c.tag) c.tag.visible = false; } c.alive = false; c.dead = c.mixer ? 1.8 : 1.2; c.shield.visible = false; const X = wx(c.x), Z = wz(c.y); for (let k = 0; k < 10; k++) pSpawn(1, X + rnd(0.2), 0.5, Z + rnd(0.2), rnd(1.2), 1 + Math.random(), rnd(1.2), 1.1, 0.25, 0.6, 0.1); fxBurst(X, Z, [4, 1.2, 0.4], 14); onDeath(i); }

@@ -63,7 +63,7 @@ const SPIRAL = spiralOrder();
 
 // Estado do mundo (o anfitrião escreve direto; convidados preenchem a partir do snapshot)
 const V = { ph: 'idle', rnd: 0, epoch: 0, map: 0, t: ROUND_T, el: 0, c: 0, grid: new Uint8Array(N), slots: [], bombs: [], flames: [], pus: [], tiles: mapTiles(0), ld: null, wn: WINS, pz: false, teams: false, revOn: false, win: -1, mwin: -1, sh: 0, diff: 1 };
-function mkSlot(i) { return { i, k: '-', peer: null, nm: '', ch: i, w: 0, al: 0, x: SPAWNS[i][0], y: SPAWNS[i][1], d: 0, m: 0, maxB: 1, range: 2, spd: 0, shield: 0, kick: 0, pierce: 0, inv: 0, cd: 0, glove: 0, stun: 0, away: 0, _stunT: 0, curse: 0, punch: 0, ice: 0, rev: 0, _curT: 0, _shT: 0, _revT: 0, _curX: 0, tsh: 0, e: [0, 0], dashT: 0, dashDir: 0, tl: 0, lim: 0, _cdT: 0, _invT: 0, _lastQ: 0, _eSeq: 0, bot: null }; }
+function mkSlot(i) { return { i, tm: i & 1, k: '-', peer: null, nm: '', ch: i, w: 0, al: 0, x: SPAWNS[i][0], y: SPAWNS[i][1], d: 0, m: 0, maxB: 1, range: 2, spd: 0, shield: 0, kick: 0, pierce: 0, inv: 0, cd: 0, glove: 0, stun: 0, away: 0, _stunT: 0, curse: 0, punch: 0, ice: 0, rev: 0, _curT: 0, _shT: 0, _revT: 0, _curX: 0, tsh: 0, e: [0, 0], dashT: 0, dashDir: 0, tl: 0, lim: 0, _cdT: 0, _invT: 0, _lastQ: 0, _eSeq: 0, bot: null }; }
 V.slots = [0, 1, 2, 3, 4, 5].map(mkSlot);
 
 function bombAtCell(x, y, except) { for (const b of V.bombs) if (b !== except && !b.fly && Math.round(b.x) === x && Math.round(b.y) === y) return b; return null; }
@@ -75,9 +75,9 @@ function blockedFor(p, x, y, thru) {
   return !(Math.round(p.x) === x && Math.round(p.y) === y);
 }
 const speedOf = p => (3.3 + 0.45 * (p.spd || 0)) * (p.curse === 1 ? 0.5 : p.curse === 2 ? 1.9 : 1);
-const teamOf = i => V.teams ? (i & 1) : i;
+const teamOf = i => V.teams ? V.slots[i].tm : i;
 const TEAMCOL = ['#ff4d4d', '#3db8ff'], TEAMNAME = ['Time Vermelho', 'Time Azul'];
-const colOf = i => V.teams ? TEAMCOL[i & 1] : SLOTCOL[i];
+const colOf = i => V.teams ? TEAMCOL[V.slots[i].tm] : SLOTCOL[i];
 // teleporte: casa livre mais distante (até 3) na direção do olhar, atravessando blocos
 function blinkTarget(x, y, dir) { for (let k = 3; k >= 1; k--) { const tx = x + DX[dir] * k, ty = y + DY[dir] * k; if (inb(tx, ty) && V.grid[idx(tx, ty)] === EMPTY && !bombAtCell(tx, ty)) return [tx, ty]; } return null; }
 // vingança: quem foi eliminado anda pela borda da arena

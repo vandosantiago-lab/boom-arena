@@ -158,7 +158,7 @@ function snap() {
   const R = Math.round;
   return {
     n: ++Net.n, ph: V.ph, rnd: V.rnd, ep: V.epoch, map: V.map, t: R(V.t * 10), el: R(V.el * 10), c: V.c | 0, win: V.win, mw: V.mwin, sh: V.sh, ld: V.ld ? [R(V.ld[0] * 10) / 10, R(V.ld[1] * 10) / 10] : 0, df: V.diff, o: [Game.opt.map, Game.opt.bots, Game.opt.size, Game.opt.time, V.wn, Game.opt.shuf, V.teams ? 1 : 0, V.revOn ? 1 : 0], rk: (V.ph === 'lobby' || V.ph === 'mend') ? rankList() : 0, pz: V.pz ? 1 : 0, pb: V.pzBy | 0, gr,
-    s: V.slots.map(s => [s.k, s.peer || 0, s.nm, s.ch, s.w, s.al, R(s.x * 100), R(s.y * 100), s.d, s.m, s.maxB, s.range, s.spd, s.shield, s.kick, s.pierce, s.inv, R(s.cd * 10), s.e[0], s.e[1], s.dash ? 1 : 0, s.glove, s.stun, s.away ? 1 : 0, s.curse, s.punch, s.ice, s.rev]),
+    s: V.slots.map(s => [s.k, s.peer || 0, s.nm, s.ch, s.w, s.al, R(s.x * 100), R(s.y * 100), s.d, s.m, s.maxB, s.range, s.spd, s.shield, s.kick, s.pierce, s.inv, R(s.cd * 10), s.e[0], s.e[1], s.dash ? 1 : 0, s.glove, s.stun, s.away ? 1 : 0, s.curse, s.punch, s.ice, s.rev, s.tm]),
     b: V.bombs.map(b => [b.id, R(b.x * 100), R(b.y * 100), b.o, R(b.fuse * 10), b.type, b.fly ? [b.fly.fx, b.fly.fy, R(b.fly.p * 100)] : 0]),
     f: V.flames.map(f => [f.id, R(f.ttl * 100), f.x, f.y, f.cells.map(c => String.fromCharCode(97 + c[0], 97 + c[1])).join(''), f.ice ? 1 : 0]),
     p: V.pus.map(p => [p.x, p.y, p.type]),
@@ -172,7 +172,7 @@ function applySnap(g) {
   for (let i = 0; i < NS; i++) {
     const a = g.s && g.s[i], s = V.slots[i]; if (!Array.isArray(a)) { s.k = '-'; continue; }
     s.k = a[0] === 'h' || a[0] === 'b' ? a[0] : '-'; s.peer = a[1] || null; s.nm = cleanName(a[2]); s.ch = clamp(a[3] | 0, 0, NCH - 1); s.w = a[4] | 0; s.al = a[5] ? 1 : 0; s.x = a[6] / 100; s.y = a[7] / 100; s.d = a[8] & 3; s.m = a[9] ? 1 : 0;
-    s.maxB = a[10] | 0; s.range = a[11] | 0; s.spd = a[12] | 0; s.shield = a[13] | 0; s.kick = a[14] | 0; s.pierce = a[15] | 0; s.inv = a[16] | 0; s.cd = a[17] / 10; s.e = [a[18] | 0, a[19] | 0]; s.glove = a[21] | 0; s.stun = a[22] | 0; s.away = a[23] | 0; s.curse = a[24] | 0; s.punch = a[25] | 0; s.ice = a[26] | 0; s.rev = a[27] | 0; s.dash = a[20] | 0;
+    s.maxB = a[10] | 0; s.range = a[11] | 0; s.spd = a[12] | 0; s.shield = a[13] | 0; s.kick = a[14] | 0; s.pierce = a[15] | 0; s.inv = a[16] | 0; s.cd = a[17] / 10; s.e = [a[18] | 0, a[19] | 0]; s.glove = a[21] | 0; s.stun = a[22] | 0; s.away = a[23] | 0; s.curse = a[24] | 0; s.punch = a[25] | 0; s.ice = a[26] | 0; s.rev = a[27] | 0; s.dash = a[20] | 0; s.tm = a.length > 28 ? a[28] & 1 : i & 1;
   }
   V.bombs = (g.b || []).map(b => ({ id: b[0], x: b[1] / 100, y: b[2] / 100, o: b[3], fuse: b[4] / 10, type: b[5], range: 2, pierce: 0, sl: -1, fly: b[6] ? { fx: b[6][0], fy: b[6][1], p: b[6][2] / 100 } : null }));
   V.flames = (g.f || []).map(f => { const cells = [], s = String(f[4]); for (let i = 0; i + 1 < s.length; i += 2) cells.push([s.charCodeAt(i) - 97, s.charCodeAt(i + 1) - 97]); return { id: f[0], ttl: f[1] / 100, x: f[2], y: f[3], cells, ice: f[5] ? 1 : 0 }; });
@@ -200,7 +200,7 @@ function netClientPoll(dt) {
 }
 function netClientSend(dt) {
   Net.sendT -= dt; Net.lastSentT += dt; if (Net.sendT > 0) return; Net.sendT = 1 / 15;
-  const m = Game.me, o = { v: 1, p: [Math.round(m.x * 100), Math.round(m.y * 100), m.d, m.m, m.dashT > 0 ? 1 : 0], r: Net.ackEp, q: Net.q, e: Net.em, nm: Game.name, ch: Game.ch, jt: Net.jt, pid: Net.gid };
+  const m = Game.me, o = { v: 1, p: [Math.round(m.x * 100), Math.round(m.y * 100), m.d, m.m, m.dashT > 0 ? 1 : 0], r: Net.ackEp, q: Net.q, e: Net.em, nm: Game.name, ch: Game.ch, jt: Net.jt, pid: Net.gid, tm: Game.tmReq };
   const js = JSON.stringify(o); if (js === Net.lastSent && Net.lastSentT < 1) return; Net.lastSent = js; Net.lastSentT = 0; Net.chan.presence(o);
 }
 function netHostPoll() {
