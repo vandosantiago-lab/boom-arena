@@ -1,7 +1,7 @@
 // ===================== SIMULAÇÃO (anfitrião / solo) =====================
 const Sim = { time: 0, nextId: 1, burn: new Map(), walls: new Map(), flameGrid: new Uint8Array(N), phT: 0, shT: 0, endT: 0, mapChoice: -1, order: [0, 1, 2, 3], BG: new Uint8Array(N) };
 
-function rollPU() { const r = Math.random() * 100; return r < 24 ? 0 : r < 48 ? 1 : r < 62 ? 2 : r < 69 ? 3 : r < 76 ? 4 : r < 82 ? 5 : r < 88 ? 6 : r < 93 ? 7 : r < 97 ? 8 : 9; }
+function rollPU() { const r = Math.random() * 100; return r < 21 ? 0 : r < 42 ? 1 : r < 67 ? 2 : r < 74 ? 3 : r < 81 ? 4 : r < 86 ? 5 : r < 92 ? 6 : r < 95 ? 7 : 8; }   // velocidade é o item mais comum; bomba de gelo saiu do jogo
 
 function genGrid() {
   const g = V.grid, keep = new Uint8Array(N);
@@ -174,7 +174,10 @@ function reqAbility(i, type, cx, cy, dir) {
     s._cdT = Sim.time + CHARS[3].cd; return true;
   }
   const cd = CHARS[s.ch].cd;
-  if (ch === 4) { const L = findLanding(cx, cy, dir); if (!L) return false; const b = mkBomb(i, L[0], L[1], 2, 0.9); b.fly = { fx: cx, fy: cy, p: 0 }; s._cdT = Sim.time + cd; return true; }
+  if (ch === 4) {   // ímã: puxa a bomba da linha à frente
+    for (let k = 1; k <= 7; k++) { const x = cx + DX[dir] * k, y = cy + DY[dir] * k; if (solidCell(x, y)) break; const b = bombAtCell(x, y); if (b) { if (k === 1) return false; b.sl = (dir + 2) & 3; b.slSpd = 8; s._cdT = Sim.time + cd; return true; } }
+    return false;
+  }
   if (ch === 5) { s.shield = 1; s.tsh = 1; s._shT = Sim.time + 3; s._cdT = Sim.time + cd; return true; }
   if (ch === 6) { s._invT = Math.max(s._invT, Sim.time + 0.4); s._cdT = Sim.time + cd; return true; }
   if (ch === 7) {
@@ -201,7 +204,7 @@ function reqAbility(i, type, cx, cy, dir) {
 
 function applyPU(s, t) {
   if (t === 0) s.maxB = Math.min(6, s.maxB + 1); else if (t === 1) s.range = Math.min(7, s.range + 1);
-  else if (t === 2) s.spd = Math.min(4, s.spd + 1); else if (t === 3) s.shield = 1; else if (t === 4) s.kick = 1; else if (t === 5) s.pierce = 1; else if (t === 6) s.glove = 1; else if (t === 7) { s.curse = 1 + ((Math.random() * 4) | 0); s._curT = Sim.time + 10; s._curX = Sim.time + 1; } else if (t === 8) s.punch = 1; else s.ice = Math.min(4, s.ice + 2);
+  else if (t === 2) s.spd = Math.min(6, s.spd + 1); else if (t === 3) s.shield = 1; else if (t === 4) s.kick = 1; else if (t === 5) s.pierce = 1; else if (t === 6) s.glove = 1; else if (t === 7) { s.curse = 1 + ((Math.random() * 4) | 0); s._curT = Sim.time + 10; s._curX = Sim.time + 1; } else if (t === 8) s.punch = 1; else s.ice = Math.min(4, s.ice + 2);
 }
 function killSlot(s) { s.al = 0; s.m = 0; s.dashT = 0; s.curse = 0; s.stun = 0; V.ld = [s.x, s.y]; if (V.revOn && s.k === 'h' && s.i === 0 && typeof Game !== 'undefined' && Game.mode !== 'client') { perimStart(s); s.rv = 1; } s._revT = Sim.time + 1.5; }
 
@@ -356,7 +359,6 @@ function botPlan(s) {
     if (CHARS[s.ch].k === 11 && enemies.some(e => Math.abs(e.x - s.x) <= 1.5 && Math.abs(e.y - s.y) <= 1.5)) { if (reqAbility(me, 'a', cx, cy, s.d)) return; }
     if ((CHARS[s.ch].k === 8 || CHARS[s.ch].k === 10) && !Sim.BG[c0] && enemies.some(e => Math.abs(e.x - s.x) + Math.abs(e.y - s.y) <= 2.2)) { if (reqAbility(me, 'a', cx, cy, s.d)) { b.t = 0; return; } }
     if (CHARS[s.ch].k === 9) for (let d = 0; d < 4; d++) { const e = playerAtCell(cx + DX[d] * 2, cy + DY[d] * 2); if (e && teamOf(e.i) !== teamOf(me) && Math.random() < 0.3) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
-    if (CHARS[s.ch].k === 4) for (let d = 0; d < 4; d++) for (let k = 2; k <= 5; k++) { const e = playerAtCell(cx + DX[d] * k, cy + DY[d] * k); if (e && teamOf(e.i) !== teamOf(me)) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
     if (CHARS[s.ch].k === 1 && ownBombs(me) < s.maxB) for (let d = 0; d < 4; d++) for (let k = 2; k <= 5; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (playerAtCell(x, y) && playerAtCell(x, y).i !== me) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
     if (CHARS[s.ch].k === 3) for (let d = 0; d < 4; d++) { for (let k = 1; k <= 7; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (solidCell(x, y) || Sim.BG[idx(x, y)]) break; const e = playerAtCell(x, y); if (e && e.i !== me && k >= 3) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } } }
   }

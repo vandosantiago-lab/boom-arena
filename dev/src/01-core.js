@@ -18,7 +18,7 @@ const CHARS = [
   { name: 'Cometa', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#12b5a4', cd: 5, k: 1 },
   { name: 'Rajada', tag: 'Arrancada', desc: 'O mais veloz: dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#7c4dff', cd: 5, k: 2 },
   { name: 'Craque', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5, k: 3 },
-  { name: 'Geada', tag: 'Bomba de gelo', desc: 'Arremessa uma bomba de gelo que congela quem estiver na explosão.', btn: 'GELO', col: '#4fc3ff', cd: 7, k: 4 },
+  { name: 'Polar', tag: 'Ímã', desc: 'Puxa para perto a bomba que estiver na linha à frente, até 7 casas.', btn: 'ÍMÃ', col: '#4fc3ff', cd: 4, k: 4 },
   { name: 'Guardião', tag: 'Escudo', desc: 'Ergue um escudo por 3 segundos que aguenta uma explosão.', btn: 'ESCUDO', col: '#8f9bb3', cd: 9, k: 5 },
   { name: 'Vulto', tag: 'Teleporte', desc: 'Some e reaparece até três casas à frente, atravessando blocos.', btn: 'SUMIR', col: '#c2185b', cd: 7.5, k: 6 },
   { name: 'Titã', tag: 'Soco', desc: 'O grandão: dá um soco na bomba à frente e ela voa por cima dos blocos.', btn: 'SOCO', col: '#ff9f43', cd: 4, k: 7 },
@@ -78,7 +78,7 @@ function blockedFor(p, x, y, thru) {
   if (!bombAtCell(x, y)) return false;
   return !(Math.round(p.x) === x && Math.round(p.y) === y);
 }
-const speedOf = p => (3.3 + 0.45 * (p.spd || 0)) * (p.curse === 1 ? 0.5 : p.curse === 2 ? 1.9 : 1);
+const speedOf = p => (3.6 + 0.45 * (p.spd || 0)) * (p.curse === 1 ? 0.78 : p.curse === 2 ? 1.8 : 1);
 const teamOf = i => V.teams ? V.slots[i].tm : i;
 const TEAMCOL = ['#ff4d4d', '#3db8ff'], TEAMNAME = ['Time Vermelho', 'Time Azul'];
 const colOf = i => V.teams ? TEAMCOL[V.slots[i].tm] : SLOTCOL[i];
@@ -147,7 +147,7 @@ function updateMover(p, ix, iy, dt) {
       }
       const d1 = hz ? (ix > 0 ? 3 : 1) : (iy > 0 ? 0 : 2);
       const d2 = hz ? (ay > 0.3 ? (iy > 0 ? 0 : 2) : -1) : (ax > 0.3 ? (ix > 0 ? 3 : 1) : -1);
-      let sp = speedOf(p); if (V.tiles.slowAt[cellOf(p)]) sp *= 0.55;
+      let sp = speedOf(p); if (V.tiles.slowAt[cellOf(p)]) sp *= 0.82;
       let dist = sp * dt; if (p.lim > 0) dist = Math.min(dist, p.lim);
       const r = stepMove(p, d1, dist, false); p.d = d1; moved = r.moved; res.hit = r.hit;
       if (moved < 1e-4 && d2 >= 0) { const r2 = stepMove(p, d2, dist, false); if (r2.moved > 1e-4) { moved = r2.moved; p.d = d2; res.hit = null; } }
