@@ -14,14 +14,18 @@ const SPAWNS = [[0, 0], [12, 10], [12, 0], [0, 10], [6, 0], [6, 10]], NS = 6;
 const ROUND_T = 120, SHRINK_AT = 60, WINS = 2, FUSE = 2.5;
 
 const CHARS = [
-  { name: 'Kaio', tag: 'Bomba remota', desc: 'Planta uma bomba extra e detona na hora que quiser.', btn: 'REMOTA', col: '#ff7a1a', cd: 4, k: 0 },
-  { name: 'Luna', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#12b5a4', cd: 5, k: 1 },
-  { name: 'Zeca', tag: 'Arrancada', desc: 'Dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#7c4dff', cd: 5, k: 2 },
-  { name: 'Dudu', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5, k: 3 },
-  { name: 'Bia', tag: 'Bomba de gelo', desc: 'Arremessa uma bomba de gelo que congela quem estiver na explosão.', btn: 'GELO', col: '#4fc3ff', cd: 7, k: 4 },
-  { name: 'Téo', tag: 'Escudo', desc: 'Ergue um escudo por 3 segundos que aguenta uma explosão.', btn: 'ESCUDO', col: '#8f9bb3', cd: 9, k: 5 },
-  { name: 'Nina', tag: 'Teleporte', desc: 'Some e reaparece até três casas à frente, atravessando blocos.', btn: 'SUMIR', col: '#c2185b', cd: 7.5, k: 6 },
-  { name: 'Rex', tag: 'Soco', desc: 'Dá um soco na bomba à frente e ela voa por cima dos blocos.', btn: 'SOCO', col: '#ff9f43', cd: 4, k: 7 },
+  { name: 'Detonador', tag: 'Bomba remota', desc: 'O inventor: planta uma bomba extra e detona na hora que quiser.', btn: 'REMOTA', col: '#ff7a1a', cd: 4, k: 0 },
+  { name: 'Cometa', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#12b5a4', cd: 5, k: 1 },
+  { name: 'Rajada', tag: 'Arrancada', desc: 'O mais veloz: dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#7c4dff', cd: 5, k: 2 },
+  { name: 'Craque', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5, k: 3 },
+  { name: 'Geada', tag: 'Bomba de gelo', desc: 'Arremessa uma bomba de gelo que congela quem estiver na explosão.', btn: 'GELO', col: '#4fc3ff', cd: 7, k: 4 },
+  { name: 'Guardião', tag: 'Escudo', desc: 'Ergue um escudo por 3 segundos que aguenta uma explosão.', btn: 'ESCUDO', col: '#8f9bb3', cd: 9, k: 5 },
+  { name: 'Vulto', tag: 'Teleporte', desc: 'Some e reaparece até três casas à frente, atravessando blocos.', btn: 'SUMIR', col: '#c2185b', cd: 7.5, k: 6 },
+  { name: 'Titã', tag: 'Soco', desc: 'O grandão: dá um soco na bomba à frente e ela voa por cima dos blocos.', btn: 'SOCO', col: '#ff9f43', cd: 4, k: 7 },
+  { name: 'Camaleoa', tag: 'Mina invisível', desc: 'Planta uma bomba extra que os adversários não enxergam.', btn: 'MINA', col: '#3ddc84', cd: 7, k: 8 },
+  { name: 'Muralha', tag: 'Muro', desc: 'Levanta um bloco na casa à frente por 5 segundos para fechar a passagem.', btn: 'MURO', col: '#b5764a', cd: 7, k: 9 },
+  { name: 'Supernova', tag: 'Megabomba', desc: 'Bomba extra que explode também nas diagonais.', btn: 'MEGA', col: '#ff4fd8', cd: 8, k: 10 },
+  { name: 'Abalo', tag: 'Terremoto', desc: 'Pisa forte e deixa tontos os adversários que estiverem colados nele.', btn: 'TREMOR', col: '#a3c94a', cd: 8, k: 11 },
 ];
 const NCH = CHARS.length;
 const SLOTCOL = ['#ff4d4d', '#3db8ff', '#ffd23d', '#5dea8c', '#c77dff', '#ff9f43'];

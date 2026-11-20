@@ -193,7 +193,7 @@ UI.init = function () {
   for (const t of ['touchend', 'click']) document.addEventListener(t, () => Au.init(), { passive: true });
   const m = /^#sala-([a-z0-9]{4})$/i.exec(location.hash || ''); if (m) { $('code').value = m[1].toUpperCase(); show('joinbox', true); }
 };
-UI.netReady = function () { const ok = !!Net.room; $('b-create').disabled = !ok; $('b-join').disabled = !ok; $('netmsg').textContent = ok ? 'Multiplayer: crie uma sala e passe o código ou o QR para até 3 pessoas.' : 'Multiplayer indisponível nesta visualização — o modo solo funciona normalmente.'; };
+UI.netReady = function () { const ok = !!Net.room; $('b-create').disabled = !ok; $('b-join').disabled = !ok; $('netmsg').textContent = ok ? 'Multiplayer: crie uma sala e passe o código ou o QR para jogar com até 5 amigos.' : 'Multiplayer indisponível nesta visualização — o modo solo funciona normalmente.'; };
 UI.renderChars = function () {
   $('chars').innerHTML = CHARS.map((c, i) => `<button class="ch${i === Game.ch ? ' sel' : ''}" data-c="${i}" style="--c:${c.col}">${G.portraits[i] ? `<img src="${G.portraits[i]}" alt="">` : ''}<b>${c.name}</b><i>${c.tag}</i></button>`).join('');
   $('chdesc').textContent = CHARS[Game.ch].desc;
@@ -339,6 +339,6 @@ try {
   gfxInit(); UI.init(); startAttract(); netInit(); loadModels();
   { const el = $('ver'); if (el) el.textContent = 'versão ' + BUILD; }
   $('c').addEventListener('webglcontextlost', e => { e.preventDefault(); try { localStorage.setItem('boom.q', '0'); } catch (x) { } $('loaderr').classList.remove('hide'); $('loaderr').firstElementChild.innerHTML = '<h2>O vídeo do aparelho foi reiniciado</h2><p>Abra a página de novo para continuar. Os gráficos voltarão no modo leve.</p>'; });
-  window.__boomReady = true; window.__boom = { V, G, Game, Net, Sim, In, UI };
+  window.__boomReady = true; window.__boom = { V, G, Game, Net, Sim, In, UI, MD, charShot, mdInfo };
   requestAnimationFrame(frame);
 } catch (e) { window.__boomErr = String(e && e.stack || e); console.error(e); }

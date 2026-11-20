@@ -280,7 +280,7 @@ function buildCharProc(ch, slot) {
   { skin: 0x8a5a3c, top: 0xe0409a, bot: 0x2a2140, shoe: 0xf4f4f4, hair: 0x2a1810, sc: 0.96, shorts: 0, st: 1 },
   { skin: 0xf2c9a5, top: 0x2e9a4a, bot: 0x3a3f4a, shoe: 0xffb300, hair: 0xc8501a, sc: 1, shorts: 0, st: 0 },
   { skin: 0x6b4530, top: 0xff5a7a, bot: 0x1f2a44, shoe: 0x29d3ff, hair: 0x1a120c, sc: 0.88, shorts: 1, st: 2, acc: 0x29d3ff },
-  { skin: 0xe0b088, top: 0xd12a2a, bot: 0xf5f5f5, shoe: 0x1546c4, hair: 0x4a3018, sc: 0.9, shorts: 1, st: 3, num: '7', numCol: '#ffffff' }][ch], st = D.st;
+  { skin: 0xe0b088, top: 0xd12a2a, bot: 0xf5f5f5, shoe: 0x1546c4, hair: 0x4a3018, sc: 0.9, shorts: 1, st: 3, num: '7', numCol: '#ffffff' }][ch % 8], st = D.st; if (ch >= 8) D.top = parseInt(CHARS[ch].col.slice(1), 16);
   const g = new THREE.Group(), rig = new THREE.Group(); g.add(rig); rig.scale.setScalar(D.sc * 1.2);
   const M = (c, r = 0.7, m = 0) => new THREE.MeshStandardMaterial({ color: c, roughness: r, metalness: m });
   const skin = M(D.skin, 0.55), top = M(D.top, 0.85), bot = M(D.bot, 0.85), shoe = M(D.shoe, 0.45), hair = M(D.hair, 0.95), white = M(0xffffff, 0.4), dark = M(0x17120f, 0.5);
@@ -352,7 +352,73 @@ function bakeGroup(root, mat) {
   const m = new THREE.Mesh(G2, mat); m.castShadow = true; root.add(m); return m;
 }
 // ---------- personagens com modelo 3D e animação por esqueleto (KayKit, CC0) ----------
-const MODELS = ['knight', 'mage', 'rogue', 'barbarian', 'skmage', 'skwarrior', 'skrogue', 'skminion'];
+const MODELS = ['knight', 'mage', 'rogue', 'barbarian'];
+// Heróis originais: corpo base (0 cavaleiro, 1 maga, 2 ladino, 3 bárbaro) + uniforme, máscara, capa e emblema próprios
+const SKIN = 0xe8b48c;
+const LOOKS = [
+  { base: 0, body: 0xff7a1a, arm: 0x2b2f3a, leg: 0x2b2f3a, mask: 'visor', mc: 0xffe14a, top: 'antenna', tc: 0x2b2f3a, emb: 'hex', ec: 0x2b2f3a },                       // Detonador
+  { base: 1, body: 0x12b5a4, arm: 0xf4f7fa, leg: 0xf4f7fa, cape: 0xffd23d, mask: 'band', mc: 0xf4f7fa, emb: 'diamond', ec: 0xffd23d },                                    // Cometa
+  { base: 2, body: 0x7c4dff, arm: 0xf4f7fa, leg: 0x4a2bb0, mask: 'cowl', mc: 0x7c4dff, eye: 'visor', vc: 0x5ff2ff, top: 'crest', tc: 0xf4f7fa, emb: 'chev', ec: 0xf4f7fa }, // Rajada
+  { base: 0, body: 0xffd400, arm: SKIN, leg: 0x1546c4, mask: 'head', mc: 0x1546c4, emb: 'ring', ec: 0x1546c4, sc: 0.96 },                                                // Craque
+  { base: 1, body: 0xd9f4ff, arm: 0x4fc3ff, leg: 0x4fc3ff, cape: 0x2f8fd6, mask: 'band', mc: 0x2f8fd6, top: 'tiara', tc: 0xbfeeff, emb: 'snow', ec: 0x2f8fd6 },           // Geada
+  { base: 0, body: 0x8f9bb3, arm: 0x5d6880, leg: 0x5d6880, cape: 0x24407a, mask: 'helm', mc: 0xaab4c8, emb: 'shield', ec: 0x3d7dff, metal: 0.55 },                        // Guardião
+  { base: 2, body: 0x24212e, arm: 0x24212e, leg: 0x24212e, cape: 0xc2185b, mask: 'ninja', mc: 0x24212e, eye: 'head', vc: 0xc2185b, emb: 'tri', ec: 0xc2185b, sc: 0.97 },    // Vulto
+  { base: 3, body: 0xff9f43, arm: SKIN, leg: 0x3a2a22, mask: 'band', mc: 0x3a2a22, emb: 'bar', ec: 0x3a2a22, fists: 0x3a2a22, sc: 1.16, wide: 1.12 },                     // Titã
+  { base: 1, body: 0x3ddc84, arm: 0x1f9a58, leg: 0x1f9a58, mask: 'cowl', mc: 0x1f9a58, eye: 'gog', vc: 0xfff06a, top: 'crest', tc: 0xb6ff5a, emb: 'swirl', ec: 0xfff06a },  // Camaleoa
+  { base: 3, body: 0xb5764a, arm: 0x8a5a3c, leg: 0x6b4a36, mask: 'brick', mc: 0x9c8f86, pads: 0x9c8f86, emb: 'brick', ec: 0xe8d9c8, sc: 1.08, wide: 1.06 },               // Muralha
+  { base: 1, body: 0xff4fd8, arm: 0xffe14a, leg: 0x8a1f9e, cape: 0xffe14a, mask: 'band', mc: 0xffe14a, top: 'halo', tc: 0xffe14a, emb: 'burst', ec: 0xffe14a },            // Supernova
+  { base: 2, body: 0xa3c94a, arm: 0x6b4a2a, leg: 0x6b4a2a, mask: 'cowl', mc: 0x6b4a2a, eye: 'band', vc: 0xa3c94a, emb: 'wave', ec: 0x3a2a14, fists: 0x6b4a2a, sc: 1.03 },   // Abalo
+];
+const HMAT = new Map();
+function heroMat(c, o) { const k = c + JSON.stringify(o || 0); let m = HMAT.get(k); if (!m) { m = o && o.glow ? new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(1.5), toneMapped: false, side: THREE.DoubleSide }) : new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.62, metalness: 0.04 }, o || {})); HMAT.set(k, m); } return m; }
+// monta os acessórios do herói em volta do corpo base (unidades do modelo: cabeça centrada em y=1.72, raio ~0.5)
+function dressHero(m, L) {
+  const HY = 1.66, HR = 0.535, F = Math.PI / 2, D2 = { side: THREE.DoubleSide };
+  const bone = n => m.getObjectByName(n), put = (bn, o) => { const b = bone(bn); if (!b) return; m.add(o); o.updateMatrixWorld(true); b.attach(o); o.traverse(q => { if (q.isMesh) q.castShadow = true; }); };
+  const mesh = (geo, mat, x, y, z, sx = 1, sy = 1, sz = 1) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.scale.set(sx, sy, sz); return o; };
+  const sph = (r, ps, pl, ts, tl) => new THREE.SphereGeometry(r, 28, 12, ps, pl, ts, tl);
+  const band = (c, t0, t1, w, r = 1.035, glow) => mesh(sph(HR * r, F - w, w * 2, t0, t1 - t0), heroMat(c, glow ? { glow: 1 } : D2), 0, HY, 0);
+  const eyes = (c, r = 0.085) => { const g = new THREE.Group(); for (const sx of [-1, 1]) g.add(mesh(GEO.sphLo, heroMat(c, { glow: 1 }), sx * 0.185, HY - 0.05, HR * 1.0, r, r * 0.8, 0.03)); return g; };
+  m.traverse(o => {
+    if (!o.isMesh) return; const n = o.name;
+    if (o.isSkinnedMesh) { if (/Body$/.test(n)) o.material = heroMat(L.body, L.metal ? { metalness: L.metal, roughness: 0.4 } : 0); else if (/Arm/.test(n)) o.material = heroMat(L.arm); else if (/Leg/.test(n)) o.material = heroMat(L.leg); return; }
+    if (/Cape$/.test(n) && L.cape != null) { o.material = heroMat(L.cape, D2); return; }
+    if (/Helmet$/.test(n) && L.mask === 'helm') { o.material = heroMat(L.mc, { metalness: 0.6, roughness: 0.35 }); return; }
+    o.visible = false;
+  });
+  const hd = new THREE.Group();
+  if (L.mask === 'band') { hd.add(band(L.mc, 1.42, 1.9, 1.35)); hd.add(eyes(0xffffff)); }
+  if (L.mask === 'visor') hd.add(band(L.mc, 1.48, 1.84, 1.2, 1.06, 1));
+  if (L.mask === 'head') hd.add(mesh(sph(HR * 1.04, 0, Math.PI * 2, 1.0, 0.3), heroMat(L.mc, D2), 0, HY, 0));
+  if (L.mask === 'cowl' || L.mask === 'ninja') {
+    hd.add(mesh(sph(HR * 1.1, 0, Math.PI * 2, 0, 1.2), heroMat(L.mc, D2), 0, HY, 0));
+    hd.add(mesh(sph(HR * 1.1, F + 1.05, Math.PI * 2 - 2.1, 1.18, 1.5), heroMat(L.mc, D2), 0, HY, 0));
+    if (L.mask === 'ninja') hd.add(band(L.mc, 1.9, 2.8, 1.1, 1.08));
+    if (L.eye === 'visor') hd.add(band(L.vc, 1.46, 1.84, 1.08, 1.12, 1)); else if (L.eye === 'gog') hd.add(eyes(L.vc, 0.14)); else if (L.eye === 'band') { hd.add(band(L.vc, 1.42, 1.9, 1.08, 1.04)); hd.add(eyes(0xffffff)); } else if (L.eye === 'head') hd.add(mesh(sph(HR * 1.12, 0, Math.PI * 2, 1.0, 0.2), heroMat(L.vc, D2), 0, HY, 0));
+  }
+  if (L.mask === 'brick') { hd.add(mesh(new THREE.BoxGeometry(1.14, 0.34, 1.12), heroMat(L.mc, { roughness: 0.95 }), 0, HY + 0.44, 0)); for (const sx of [-1, 1]) hd.add(mesh(new THREE.BoxGeometry(0.16, 0.5, 0.8), heroMat(L.mc, { roughness: 0.95 }), sx * 0.5, HY + 0.05, -0.1)); }
+  if (L.top === 'crest') { const t = mesh(new THREE.TorusGeometry(HR * 1.08, 0.075, 6, 18, Math.PI * 0.9), heroMat(L.tc), 0, HY, 0); t.rotation.set(0, -F, 0); t.rotation.z = 0.25; hd.add(t); }
+  if (L.top === 'antenna') for (const sx of [-1, 1]) { const a = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.42, 6), heroMat(L.tc), sx * 0.24, HY + 0.7, 0); a.rotation.z = -sx * 0.25; hd.add(a); hd.add(mesh(GEO.sphLo, heroMat(0xffe14a, { glow: 1 }), sx * 0.3, HY + 0.92, 0, 0.07, 0.07, 0.07)); }
+  if (L.top === 'tiara') for (let i = -2; i <= 2; i++) { const a = F + i * 0.42, c = mesh(new THREE.ConeGeometry(0.075, i === 0 ? 0.42 : 0.3, 5), heroMat(L.tc, { roughness: 0.2, metalness: 0.3 }), -Math.cos(a) * HR * 0.86, HY + 0.52, Math.sin(a) * HR * 0.86); hd.add(c); }
+  if (L.top === 'halo') { const t = mesh(new THREE.TorusGeometry(0.66, 0.045, 6, 28), heroMat(L.tc, { glow: 1 }), 0, HY + 0.05, -0.3); hd.add(t); }
+  put('head', hd);
+  const ch = new THREE.Group(), E = heroMat(L.ec, { glow: 1 }), ez = 0.335, ey = 0.98, at = (o, x = 0, y = 0) => { o.position.set(x, ey + y, ez); ch.add(o); return o; };
+  if (L.emb === 'hex') at(new THREE.Mesh(new THREE.CircleGeometry(0.15, 6), E));
+  if (L.emb === 'diamond') at(new THREE.Mesh(new THREE.CircleGeometry(0.16, 4), E)).scale.set(0.7, 1.15, 1);
+  if (L.emb === 'tri') at(new THREE.Mesh(new THREE.CircleGeometry(0.15, 3), E)).rotation.z = Math.PI;
+  if (L.emb === 'ring') at(new THREE.Mesh(new THREE.RingGeometry(0.08, 0.15, 24), E));
+  if (L.emb === 'shield') { at(new THREE.Mesh(new THREE.CircleGeometry(0.16, 5), E)).rotation.z = Math.PI; }
+  if (L.emb === 'bar') for (let i = 0; i < 2; i++) at(new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.07), E), 0, i * 0.12 - 0.06);
+  if (L.emb === 'chev') for (let i = 0; i < 3; i++) at(new THREE.Mesh(new THREE.CircleGeometry(0.09, 3), E), (i - 1) * 0.13, 0).rotation.z = -Math.PI / 2;
+  if (L.emb === 'snow') for (let i = 0; i < 3; i++) at(new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.05), E)).rotation.z = i * Math.PI / 3;
+  if (L.emb === 'swirl') { at(new THREE.Mesh(new THREE.RingGeometry(0.1, 0.15, 20, 1, 0, 4.6), E)); at(new THREE.Mesh(new THREE.CircleGeometry(0.045, 12), E)); }
+  if (L.emb === 'brick') for (let r = 0; r < 2; r++) for (let k = 0; k < 2; k++) at(new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.08), E), (k - 0.5) * 0.18 + (r ? 0.045 : -0.045), (r - 0.5) * 0.11);
+  if (L.emb === 'burst') { at(new THREE.Mesh(new THREE.CircleGeometry(0.085, 16), E)); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4, o = at(new THREE.Mesh(new THREE.PlaneGeometry(0.035, 0.09), E), Math.sin(a) * 0.14, Math.cos(a) * 0.14); o.rotation.z = -a; } }
+  if (L.emb === 'wave') { const xs = [-0.16, -0.09, -0.03, 0.03, 0.09, 0.16], ys = [0, 0, 0.1, -0.1, 0, 0]; for (let i = 0; i < 5; i++) { const dx = xs[i + 1] - xs[i], dy = ys[i + 1] - ys[i], o = at(new THREE.Mesh(new THREE.PlaneGeometry(Math.hypot(dx, dy) + 0.03, 0.04), E), (xs[i] + xs[i + 1]) / 2, (ys[i] + ys[i + 1]) / 2); o.rotation.z = Math.atan2(dy, dx); } }
+  put('chest', ch);
+  if (L.fists != null) for (const sd of ['l', 'r']) put('hand' + sd, mesh(GEO.sphLo, heroMat(L.fists), sd === 'l' ? 0.82 : -0.82, 1.1, 0, 0.21, 0.21, 0.21));
+  if (L.pads != null) for (const sd of ['l', 'r']) put('upperarm' + sd, mesh(new THREE.BoxGeometry(0.34, 0.26, 0.42), heroMat(L.pads, { roughness: 0.95 }), sd === 'l' ? 0.36 : -0.36, 1.2, 0));
+}
 const MD = { ready: false, ver: 0, src: [], h: [], clips: {} };
 async function loadModels() {
   if (!HOSTED) return;
@@ -373,9 +439,10 @@ function setAnim(c, name, fade, once) {
 }
 function actOnce(c, name, dur) { if (!c || !c.mixer || !c.acts[name] || !c.alive) return; setAnim(c, name, 0.06, true); c.one = dur || Math.min(0.8, c.acts[name].getClip().duration); }
 function buildChar(ch, slot) {
-  if (!MD.ready || !MD.src[ch]) { const c = buildCharProc(ch, slot); c.ver = MD.ver; return c; }
+  const L = LOOKS[ch];
+  if (!MD.ready || !MD.src[L.base]) { const c = buildCharProc(ch, slot); c.ver = MD.ver; return c; }
   geos(); const g = new THREE.Group(), rig = new THREE.Group(); g.add(rig);
-  const m = SkeletonUtils.clone(MD.src[ch]); m.scale.setScalar(1.3 / MD.h[ch]); rig.add(m);
+  const m = SkeletonUtils.clone(MD.src[L.base]), k0 = 0.6 * (L.sc || 1); m.scale.set(k0 * (L.wide || 1), k0, k0 * (L.wide || 1)); m.updateMatrixWorld(true); dressHero(m, L); rig.add(m);
   const mixer = new THREE.AnimationMixer(m), acts = {}; for (const k in MD.clips) acts[k] = mixer.clipAction(MD.clips[k]);
   const ring = new THREE.Mesh(GEO.ring, new THREE.MeshBasicMaterial({ color: colOf(slot), transparent: true, opacity: 0.95, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.025; g.add(ring);
   const tag = new THREE.Mesh(new THREE.OctahedronGeometry(0.085), new THREE.MeshBasicMaterial({ color: colOf(slot) })); tag.position.y = 1.56; g.add(tag);
@@ -400,6 +467,14 @@ function animChar(c, st, dt, t) {
   if (st.win) { c.rig.position.y = Math.abs(Math.sin(t * 6)) * 0.28; c.armL.rotation.z = -2.6; c.armR.rotation.z = 2.6; c.armL.rotation.x = c.armR.rotation.x = 0; }
   poseBoard(c, st.dash);
 }
+function charShot(i, ry, w, h) {   // retrato grande de um personagem (usado nos testes)
+  const ps = new THREE.Scene(), pc = new THREE.PerspectiveCamera(26, w / h, 0.1, 10); ps.background = new THREE.Color(0x1a2033); ps.add(new THREE.HemisphereLight(0xffffff, 0x445066, 1.5)); const d = new THREE.DirectionalLight(0xffffff, 2.6); d.position.set(1.5, 2.5, 3); ps.add(d);
+  pc.position.set(0, 0.85, 3.6); pc.lookAt(0, 0.7, 0); const c = buildChar(i, 0); c.ring.visible = false; if (c.tag) c.tag.visible = false; c.g.rotation.y = ry; ps.add(c.g);
+  const pr = ren.getPixelRatio(), sz = new THREE.Vector2(); ren.getSize(sz); ren.setPixelRatio(1); ren.setSize(w, h, false); ren.render(ps, pc); const u = ren.domElement.toDataURL('image/png'); ren.setPixelRatio(pr); ren.setSize(sz.x, sz.y, false); return u;
+}
+function mdInfo() { const out = []; for (let i = 0; i < MD.src.length; i++) { const sc = MD.src[i]; sc.updateMatrixWorld(true); const r = [], f = v => v.toArray().map(x => +x.toFixed(2)).join(',');
+  sc.traverse(o => { if (o.isBone && /^(head|chest|hips|spine|hand\.?[lr]|handslot\.?[lr]|upperarm\.?l|lowerarm\.?l|upperleg\.?l|foot\.?l)$/i.test(o.name)) r.push(o.name + '@' + f(o.getWorldPosition(new THREE.Vector3()))); if (o.isMesh) { o.geometry.computeBoundingBox(); const bb = o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld); r.push(o.name + (o.isSkinnedMesh ? '*' : '') + ' [' + f(bb.min) + ' | ' + f(bb.max) + '] vis=' + o.visible); } });
+  out.push(i + ' h=' + MD.h[i].toFixed(2) + '\n  ' + r.join('\n  ')); } return out.join('\n'); }
 function makePortraits() {
   const ps = new THREE.Scene(), pc = new THREE.PerspectiveCamera(26, 0.9, 0.1, 10);
   ps.background = new THREE.Color(0x1a2033); ps.add(new THREE.HemisphereLight(0xffffff, 0x445066, 1.5)); const d = new THREE.DirectionalLight(0xffffff, 2.6); d.position.set(1.5, 2.5, 3); ps.add(d);
@@ -533,14 +608,16 @@ function mkBombMesh(b) {
   const g = new THREE.Group();
   if (!G.bombMat) { G.bombMat = new THREE.MeshStandardMaterial({ color: 0x2b3560, roughness: 0.25, metalness: 0.1, emissive: 0x141a38 }); G.capMat = new THREE.MeshStandardMaterial({ color: 0x6b7080, roughness: 0.35, metalness: 0.9 }); G.fuseMat = new THREE.MeshStandardMaterial({ color: 0xc9a26a, roughness: 0.9 }); }
   if (!G.iceMat) G.iceMat = new THREE.MeshStandardMaterial({ color: 0x7fd8ff, roughness: 0.1, metalness: 0.2, emissive: 0x1a6a9a });
-  const s = new THREE.Mesh(GEO.sph, b.type === 2 ? G.iceMat : G.bombMat); s.scale.setScalar(0.33); s.position.y = 0.36; s.castShadow = true; g.add(s);
+  if (!G.megaMat) { G.megaMat = new THREE.MeshStandardMaterial({ color: 0x8a1f9e, roughness: 0.2, metalness: 0.2, emissive: 0x4a0f5a }); G.mineMat = new THREE.MeshStandardMaterial({ color: 0x3ddc84, roughness: 0.3, emissive: 0x145a30, transparent: true, opacity: 0.5 }); }
+  const s = new THREE.Mesh(GEO.sph, b.type === 2 ? G.iceMat : b.type === 4 ? G.megaMat : b.type === 3 ? G.mineMat : G.bombMat); s.scale.setScalar(b.type === 4 ? 0.4 : 0.33); s.position.y = 0.36; s.castShadow = true; g.add(s);
   const c = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.1, 0.09, 12), G.capMat); c.position.y = 0.7; g.add(c);
   const f = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.16, 6), G.fuseMat); f.position.set(0.03, 0.8, 0); f.rotation.z = -0.4; g.add(f);
-  const sp = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ map: glowTex(), color: b.type === 1 ? new THREE.Color(6, 0.3, 0.3) : b.type === 2 ? new THREE.Color(1, 4, 6) : new THREE.Color(6, 3.5, 1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); sp.position.set(0.07, 0.9, 0); g.add(sp);
+  const sp = new THREE.Mesh(GEO.plane, new THREE.MeshBasicMaterial({ map: glowTex(), color: b.type === 1 ? new THREE.Color(6, 0.3, 0.3) : b.type === 2 ? new THREE.Color(1, 4, 6) : b.type === 4 ? new THREE.Color(6, 1, 5) : b.type === 3 ? new THREE.Color(1, 5, 2) : new THREE.Color(6, 3.5, 1), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false })); sp.position.set(0.07, 0.9, 0); g.add(sp);
   if (b.type === 1) { const a = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.3, 6), G.capMat); a.position.set(-0.08, 0.86, 0); g.add(a); const band = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.025, 6, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 0.2, 0.2), toneMapped: false })); band.rotation.x = Math.PI / 2; band.position.y = 0.36; g.add(band); }
   scene.add(g); return { g, sp, x: b.fly ? b.fly.fx : b.x, y: b.fly ? b.fly.fy : b.y, born: G.time };
 }
 
+function mineSeen(o) { const mi = myIdx(); return mi < 0 ? Game.mode === 'attract' : (mi === o || (V.teams && teamOf(mi) === teamOf(o))); }   // só o dono (e o time dele) enxerga a mina
 function gfxSync(dt) {
   const fdt = dt * G.fx, t = G.time;
   if (G.epoch !== V.epoch || G.map !== V.map) buildArena();
@@ -551,20 +628,20 @@ function gfxSync(dt) {
     if (b === BURN) { if (m) { G.burning.push({ c, t: 0.5 }); G.blocks[c] = null; } fxDebris(c, C.debris); Au.play('crack', 0.8); }
     else if (b === EMPTY) { if (m) { setBlock(c, 0, 0); G.blocks[c] = null; fxDebris(c, C.debris); } }
     else if (b === SOLID) { if (m) { setBlock(c, 0, 0); G.blocks[c] = null; } addSolid(c, true); }
-    else if (b === BLOCK && !m) addBlock(c, C, Math.random);
+    else if (b === BLOCK && !m) { addBlock(c, C, Math.random); if (t - G.arenaT > 0.5) { fxDust(wx(c % GW), wz((c / GW) | 0)); Au.play('thud', 0.5); } }
   }
   for (let i = G.burning.length - 1; i >= 0; i--) { const o = G.burning[i]; o.t -= fdt; const s = Math.max(0, o.t / 0.5); setBlock(o.c, s, G.blockRot[o.c] + (0.5 - o.t) * 5); if (o.t <= 0) G.burning.splice(i, 1); }
   for (let i = G.solids.length - 1; i >= 0; i--) { const o = G.solids[i]; o.v += 60 * dt; o.m.position.y -= o.v * dt; if (o.m.position.y <= 0.45) { o.m.position.y = 0.45; fxDust(o.m.position.x, o.m.position.z); G.shake = Math.max(G.shake, 0.1); Au.play('thud', 0.5); G.solids.splice(i, 1); } }
   // bombas
   const seen = G.seen; seen.clear();
   for (const b of V.bombs) {
-    seen.add(b.id); let o = G.bombs.get(b.id); if (!o) { o = mkBombMesh(b); G.bombs.set(b.id, o); Au.play(b.fly ? 'whoosh' : 'place', 0.5); if (t - G.arenaT > 0.3) actOnce(G.chars[b.o], b.fly ? 'Throw' : b.sl >= 0 ? 'Unarmed_Melee_Attack_Kick' : 'Interact', 0.42); }
+    seen.add(b.id); let o = G.bombs.get(b.id); const hidden = b.type === 3 && !mineSeen(b.o); if (!o) { o = mkBombMesh(b); G.bombs.set(b.id, o); if (!hidden) Au.play(b.fly ? 'whoosh' : 'place', 0.5); if (t - G.arenaT > 0.3) actOnce(G.chars[b.o], b.fly ? 'Throw' : b.sl >= 0 ? 'Unarmed_Melee_Attack_Kick' : 'Interact', 0.42); }
     if (b.fly && !o.fl && t - o.born > 0.1) actOnce(G.chars[b.o], 'Throw', 0.45); o.fl = !!b.fly;
     if (!b.fly) { const mv = Math.abs(b.x - o.x) + Math.abs(b.y - o.y) > 0.25; if (mv && !o.mv) Au.play('kick'); o.mv = mv; }
     let y = 0;
     if (b.fly) { const p = clamp(b.fly.p, 0, 1); o.x = lerp(b.fly.fx, b.x, p); o.y = lerp(b.fly.fy, b.y, p); y = Math.sin(p * Math.PI) * 2.4; o.g.rotation.x = p * 9; }
     else { const k = 1 - Math.exp(-dt * 26); o.x += (b.x - o.x) * k; o.y += (b.y - o.y) * k; o.g.rotation.x = 0; }
-    o.g.position.set(wx(o.x), y, wz(o.y));
+    o.g.position.set(wx(o.x), y, wz(o.y)); o.g.visible = !hidden;
     const urg = b.type === 1 ? 6 : 6 + (FUSE - b.fuse) * 5, pop = Math.min(1, (t - o.born) * 9), pu = 1 + Math.sin(t * urg) * 0.13;
     o.g.scale.setScalar(pop * pu * 1.15);
     const fl = b.type === 1 ? (Math.sin(t * 9) > 0 ? 0.42 : 0.12) : 0.26 + Math.random() * 0.16; o.sp.scale.set(fl, fl, 1); o.sp.quaternion.copy(cam.quaternion);
@@ -615,6 +692,7 @@ function syncPlayers(dt, fdt, t) {
   const me = myIdx();
   for (let i = 0; i < NS; i++) {
     const s = V.slots[i], lab = UI.labs[i]; let c = G.chars[i];
+    if (c && CHARS[s.ch].k === 11) { if (s.al && s.cd > 0.3 && (c.cdW || 0) <= 0.05 && t - G.arenaT > 0.5) { for (let a = 0; a < 8; a++) fxDust(wx(c.x) + Math.cos(a * 0.785) * 1.1, wz(c.y) + Math.sin(a * 0.785) * 1.1); G.shake = Math.max(G.shake, 0.3); Au.play('thud', 1); actOnce(c, 'Jump_Full_Short', 0.5); } c.cdW = s.cd; }
     if (s.k === '-') { if (c) c.g.visible = false; if (lab) lab.style.display = 'none'; continue; }
     if (!c || c.ch !== s.ch || c.ver !== MD.ver || c.tm !== (V.teams ? s.tm : -1)) { if (c) scene.remove(c.g); c = G.chars[i] = buildChar(s.ch, i); c.tm = V.teams ? s.tm : -1; lab.style.color = colOf(i); scene.add(c.g); c.g.visible = false; }
     const p = rpos(i);

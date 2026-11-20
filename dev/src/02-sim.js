@@ -1,5 +1,5 @@
 // ===================== SIMULAÇÃO (anfitrião / solo) =====================
-const Sim = { time: 0, nextId: 1, burn: new Map(), flameGrid: new Uint8Array(N), phT: 0, shT: 0, endT: 0, mapChoice: -1, order: [0, 1, 2, 3], BG: new Uint8Array(N) };
+const Sim = { time: 0, nextId: 1, burn: new Map(), walls: new Map(), flameGrid: new Uint8Array(N), phT: 0, shT: 0, endT: 0, mapChoice: -1, order: [0, 1, 2, 3], BG: new Uint8Array(N) };
 
 function rollPU() { const r = Math.random() * 100; return r < 24 ? 0 : r < 48 ? 1 : r < 62 ? 2 : r < 69 ? 3 : r < 76 ? 4 : r < 82 ? 5 : r < 88 ? 6 : r < 93 ? 7 : r < 97 ? 8 : 9; }
 
@@ -30,7 +30,7 @@ function simStartRound() {
   V.map = Sim.mapChoice >= 0 ? Sim.mapChoice : Sim.order[(V.rnd - 1) % NMAP];
   V.tiles = mapTiles(V.map);
   genGrid();
-  V.bombs.length = 0; V.flames.length = 0; V.pus.length = 0; Sim.burn.clear(); Sim.flameGrid.fill(0);
+  V.bombs.length = 0; V.flames.length = 0; V.pus.length = 0; Sim.burn.clear(); Sim.walls.clear(); Sim.flameGrid.fill(0);
   const act = V.slots.filter(s => s.k !== '-'), sp = Sim.shuf ? [0, 1, 2, 3, 4, 5].sort(() => Math.random() - 0.5) : null; V.pz = false;
   for (const s of V.slots) {
     const q = SPAWNS[sp && s.k !== '-' ? sp[act.indexOf(s)] : s.i];
@@ -43,6 +43,7 @@ function simStartRound() {
   V.ph = 'count'; Sim.phT = 3; V.c = 3; Sim.shT = 0; Sim.endT = 0;
 }
 
+function burnBlock(c) { const wl = Sim.walls.delete(c); V.grid[c] = BURN; Sim.burn.set(c, { t: 0.62, pu: !wl && Math.random() < 0.36 ? rollPU() : -1 }); }   // muro do poder não solta item
 function blastCells(cx, cy, range, pierce, apply) {
   const out = [[cx, cy]];
   for (let d = 0; d < 4; d++) for (let i = 1; i <= range; i++) {
@@ -50,7 +51,7 @@ function blastCells(cx, cy, range, pierce, apply) {
     const c = idx(x, y), g = V.grid[c];
     if (g === PILLAR || g === SOLID) break;
     if (g === BLOCK || g === BURN) {
-      if (apply && g === BLOCK) { V.grid[c] = BURN; Sim.burn.set(c, { t: 0.62, pu: Math.random() < 0.36 ? rollPU() : -1 }); }
+      if (apply && g === BLOCK) burnBlock(c);
       out.push([x, y]); if (!pierce) break; else continue;
     }
     out.push([x, y]);
@@ -72,6 +73,12 @@ function explode(b) {
     return;
   }
   const cells = blastCells(cx, cy, b.range, b.pierce, true);
+  if (b.type === 4) for (const e of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {   // megabomba: pega também as diagonais
+    const x = cx + e[0], y = cy + e[1]; if (!inb(x, y)) continue; const c = idx(x, y), g = V.grid[c]; if (g === PILLAR || g === SOLID) continue;
+    if (g === BLOCK) burnBlock(c);
+    else if (g === EMPTY) { for (const o of V.bombs) if (!o.fly && Math.round(o.x) === x && Math.round(o.y) === y && o.fuse > 0.08) o.fuse = 0.08; for (let k = V.pus.length - 1; k >= 0; k--) { const p = V.pus[k]; if (p.x === x && p.y === y && !(p.fresh > 0)) V.pus.splice(k, 1); } }
+    V.flames.push({ id: Sim.nextId++, x, y, cells: [[x, y]], ttl: 0.3 }); Sim.flameGrid[c] = 1;
+  }
   V.flames.push({ id: Sim.nextId++, x: cx, y: cy, cells, ttl: 0.6 });
   for (const c of cells) Sim.flameGrid[idx(c[0], c[1])] = 1;
 }
@@ -175,6 +182,20 @@ function reqAbility(i, type, cx, cy, dir) {
     if (!b) { if (solidCell(ax, ay) || playerAtCell(ax, ay) || ownBombs(i) >= s.maxB) return false; b = mkBomb(i, ax, ay, 0, FUSE); }
     if (!punchBomb(b, dir)) return false; s._cdT = Sim.time + cd; return true;
   }
+  if (ch === 8 || ch === 10) {   // mina invisível / megabomba: bomba extra na própria casa
+    const ty = ch === 8 ? 3 : 4; if (V.grid[idx(cx, cy)] !== EMPTY || bombAtCell(cx, cy) || V.bombs.some(b => b.o === i && b.type === ty)) return false;
+    mkBomb(i, cx, cy, ty, ch === 8 ? FUSE * 1.4 : FUSE); s._cdT = Sim.time + cd; return true;
+  }
+  if (ch === 9) {   // muro temporário na casa à frente
+    const ax = cx + DX[dir], ay = cy + DY[dir]; if (!inb(ax, ay)) return false; const c = idx(ax, ay);
+    if (V.grid[c] !== EMPTY || bombAtCell(ax, ay) || playerAtCell(ax, ay) || Sim.flameGrid[c]) return false;
+    for (let k = V.pus.length - 1; k >= 0; k--) if (V.pus[k].x === ax && V.pus[k].y === ay) return false;
+    V.grid[c] = BLOCK; Sim.walls.set(c, Sim.time + 5); s._cdT = Sim.time + cd; return true;
+  }
+  if (ch === 11) {   // terremoto: atordoa os adversários colados
+    for (const o of V.slots) if (o.al && o.i !== i && teamOf(o.i) !== teamOf(i) && Sim.time >= o._invT && Math.abs(o.x - s.x) <= 1.6 && Math.abs(o.y - s.y) <= 1.6) { o._stunT = Sim.time + 1.3; o.dashT = 0; o.m = 0; }
+    s._cdT = Sim.time + cd; return true;
+  }
   return false;
 }
 
@@ -242,6 +263,7 @@ function simTick(dt) {
 }
 
 function tickBurn(dt) {
+  for (const [c, t] of Sim.walls) { if (V.grid[c] !== BLOCK) Sim.walls.delete(c); else if (Sim.time >= t) burnBlock(c); }
   for (const [c, o] of Sim.burn) {
     o.t -= dt;
     if (o.t <= 0) { if (V.grid[c] === BURN) { V.grid[c] = EMPTY; if (o.pu >= 0) V.pus.push({ x: c % GW, y: (c / GW) | 0, type: o.pu, fresh: 0.35 }); } Sim.burn.delete(c); }
@@ -331,6 +353,9 @@ function botPlan(s) {
     b.path = best >= 0 ? pathFrom(R, c0, best) : []; b.goal = best; return;
   }
   if (skill && s.cd <= 0) {
+    if (CHARS[s.ch].k === 11 && enemies.some(e => Math.abs(e.x - s.x) <= 1.5 && Math.abs(e.y - s.y) <= 1.5)) { if (reqAbility(me, 'a', cx, cy, s.d)) return; }
+    if ((CHARS[s.ch].k === 8 || CHARS[s.ch].k === 10) && !Sim.BG[c0] && enemies.some(e => Math.abs(e.x - s.x) + Math.abs(e.y - s.y) <= 2.2)) { if (reqAbility(me, 'a', cx, cy, s.d)) { b.t = 0; return; } }
+    if (CHARS[s.ch].k === 9) for (let d = 0; d < 4; d++) { const e = playerAtCell(cx + DX[d] * 2, cy + DY[d] * 2); if (e && teamOf(e.i) !== teamOf(me) && Math.random() < 0.3) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
     if (CHARS[s.ch].k === 4) for (let d = 0; d < 4; d++) for (let k = 2; k <= 5; k++) { const e = playerAtCell(cx + DX[d] * k, cy + DY[d] * k); if (e && teamOf(e.i) !== teamOf(me)) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
     if (CHARS[s.ch].k === 1 && ownBombs(me) < s.maxB) for (let d = 0; d < 4; d++) for (let k = 2; k <= 5; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (playerAtCell(x, y) && playerAtCell(x, y).i !== me) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
     if (CHARS[s.ch].k === 3) for (let d = 0; d < 4; d++) { for (let k = 1; k <= 7; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (solidCell(x, y) || Sim.BG[idx(x, y)]) break; const e = playerAtCell(x, y); if (e && e.i !== me && k >= 3) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } } }
