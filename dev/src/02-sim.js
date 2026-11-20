@@ -174,8 +174,15 @@ function reqAbility(i, type, cx, cy, dir) {
     s._cdT = Sim.time + CHARS[3].cd; return true;
   }
   const cd = CHARS[s.ch].cd;
-  if (ch === 4) {   // ímã: puxa a bomba da linha à frente
-    for (let k = 1; k <= 7; k++) { const x = cx + DX[dir] * k, y = cy + DY[dir] * k; if (solidCell(x, y)) break; const b = bombAtCell(x, y); if (b) { if (k === 1) return false; b.sl = (dir + 2) & 3; b.slSpd = 8; s._cdT = Sim.time + cd; return true; } }
+  if (ch === 4) {   // ímã: puxa para a casa ao lado o adversário que estiver na linha à frente
+    for (let k = 1; k <= 7; k++) {
+      const x = cx + DX[dir] * k, y = cy + DY[dir] * k; if (solidCell(x, y) || bombAtCell(x, y)) break; const o = playerAtCell(x, y);
+      if (o && o.i !== i) {
+        if (k === 1 || teamOf(o.i) === teamOf(i) || Sim.time < o._invT) return false;
+        o.x = cx + DX[dir]; o.y = cy + DY[dir]; o.m = 0; o.dashT = 0; o._stunT = Sim.time + 0.7; o.pq = (o.pq | 0) + 1; o.px = o.x; o.py = o.y; if (o.bot) { o.bot.path = []; o.bot.t = 0; }
+        s._cdT = Sim.time + cd; return true;
+      }
+    }
     return false;
   }
   if (ch === 5) { s.shield = 1; s.tsh = 1; s._shT = Sim.time + 3; s._cdT = Sim.time + cd; return true; }
@@ -358,6 +365,7 @@ function botPlan(s) {
   if (skill && s.cd <= 0) {
     if (CHARS[s.ch].k === 11 && enemies.some(e => Math.abs(e.x - s.x) <= 1.5 && Math.abs(e.y - s.y) <= 1.5)) { if (reqAbility(me, 'a', cx, cy, s.d)) return; }
     if ((CHARS[s.ch].k === 8 || CHARS[s.ch].k === 10) && !Sim.BG[c0] && enemies.some(e => Math.abs(e.x - s.x) + Math.abs(e.y - s.y) <= 2.2)) { if (reqAbility(me, 'a', cx, cy, s.d)) { b.t = 0; return; } }
+    if (CHARS[s.ch].k === 4) for (let d = 0; d < 4; d++) for (let k = 1; k <= 6; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (solidCell(x, y) || bombAtCell(x, y)) break; const e = playerAtCell(x, y); if (e && e.i !== me) { if (k >= 2 && teamOf(e.i) !== teamOf(me)) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } break; } }
     if (CHARS[s.ch].k === 9) for (let d = 0; d < 4; d++) { const e = playerAtCell(cx + DX[d] * 2, cy + DY[d] * 2); if (e && teamOf(e.i) !== teamOf(me) && Math.random() < 0.3) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
     if (CHARS[s.ch].k === 1 && ownBombs(me) < s.maxB) for (let d = 0; d < 4; d++) for (let k = 2; k <= 5; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (playerAtCell(x, y) && playerAtCell(x, y).i !== me) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } }
     if (CHARS[s.ch].k === 3) for (let d = 0; d < 4; d++) { for (let k = 1; k <= 7; k++) { const x = cx + DX[d] * k, y = cy + DY[d] * k; if (solidCell(x, y) || Sim.BG[idx(x, y)]) break; const e = playerAtCell(x, y); if (e && e.i !== me && k >= 3) { s.d = d; if (reqAbility(me, 'a', cx, cy, d)) return; } } }

@@ -18,7 +18,7 @@ const CHARS = [
   { name: 'Cometa', tag: 'Arremesso', desc: 'Lança a bomba por cima dos blocos, três casas à frente.', btn: 'LANÇAR', col: '#12b5a4', cd: 5, k: 1 },
   { name: 'Rajada', tag: 'Arrancada', desc: 'O mais veloz: dispara pelo corredor, atravessa bombas e fica invulnerável.', btn: 'DASH', col: '#7c4dff', cd: 5, k: 2 },
   { name: 'Craque', tag: 'Chute', desc: 'Chuta bombas ao encostar e dispara uma bomba rasteira.', btn: 'CHUTE', col: '#ffd400', cd: 3.5, k: 3 },
-  { name: 'Polar', tag: 'Ímã', desc: 'Puxa para perto a bomba que estiver na linha à frente, até 7 casas.', btn: 'ÍMÃ', col: '#4fc3ff', cd: 4, k: 4 },
+  { name: 'Polar', tag: 'Ímã', desc: 'Puxa para o lado dela o adversário que estiver na linha à frente, até 7 casas, e o deixa tonto um instante.', btn: 'ÍMÃ', col: '#4fc3ff', cd: 7, k: 4 },
   { name: 'Guardião', tag: 'Escudo', desc: 'Ergue um escudo por 3 segundos que aguenta uma explosão.', btn: 'ESCUDO', col: '#8f9bb3', cd: 9, k: 5 },
   { name: 'Vulto', tag: 'Teleporte', desc: 'Some e reaparece até três casas à frente, atravessando blocos.', btn: 'SUMIR', col: '#c2185b', cd: 7.5, k: 6 },
   { name: 'Titã', tag: 'Soco', desc: 'O grandão: dá um soco na bomba à frente e ela voa por cima dos blocos.', btn: 'SOCO', col: '#ff9f43', cd: 4, k: 7 },
@@ -67,7 +67,7 @@ const SPIRAL = spiralOrder();
 
 // Estado do mundo (o anfitrião escreve direto; convidados preenchem a partir do snapshot)
 const V = { ph: 'idle', rnd: 0, epoch: 0, map: 0, t: ROUND_T, el: 0, c: 0, grid: new Uint8Array(N), slots: [], bombs: [], flames: [], pus: [], tiles: mapTiles(0), ld: null, wn: WINS, pz: false, teams: false, revOn: false, win: -1, mwin: -1, sh: 0, diff: 1 };
-function mkSlot(i) { return { i, tm: i & 1, k: '-', peer: null, nm: '', ch: i, w: 0, al: 0, x: SPAWNS[i][0], y: SPAWNS[i][1], d: 0, m: 0, maxB: 1, range: 2, spd: 0, shield: 0, kick: 0, pierce: 0, inv: 0, cd: 0, glove: 0, stun: 0, away: 0, _stunT: 0, curse: 0, punch: 0, ice: 0, rev: 0, _curT: 0, _shT: 0, _revT: 0, _curX: 0, tsh: 0, e: [0, 0], dashT: 0, dashDir: 0, tl: 0, lim: 0, _cdT: 0, _invT: 0, _lastQ: 0, _eSeq: 0, bot: null }; }
+function mkSlot(i) { return { i, tm: i & 1, pq: 0, px: 0, py: 0, k: '-', peer: null, nm: '', ch: i, w: 0, al: 0, x: SPAWNS[i][0], y: SPAWNS[i][1], d: 0, m: 0, maxB: 1, range: 2, spd: 0, shield: 0, kick: 0, pierce: 0, inv: 0, cd: 0, glove: 0, stun: 0, away: 0, _stunT: 0, curse: 0, punch: 0, ice: 0, rev: 0, _curT: 0, _shT: 0, _revT: 0, _curX: 0, tsh: 0, e: [0, 0], dashT: 0, dashDir: 0, tl: 0, lim: 0, _cdT: 0, _invT: 0, _lastQ: 0, _eSeq: 0, bot: null }; }
 V.slots = [0, 1, 2, 3, 4, 5].map(mkSlot);
 
 function bombAtCell(x, y, except) { for (const b of V.bombs) if (b !== except && !b.fly && Math.round(b.x) === x && Math.round(b.y) === y) return b; return null; }
